@@ -17,41 +17,72 @@
 ---
 
 ## Flutter Plan
+
 1. Pekan 1 (17-24 November 2025)
+
 Walyul'ahdi Maulana Ramadhan : Menginisiasi Flutter Project
+
 Muhammad Indi Ryan Pratama   :
+
 Salsabila Salimah            :
+
 Aryandana Pascua Patiung     :
+
 Adryan Muhammad Rasyad       : Membuat deskripsi github & Desain Model & API Setup
 
 ---
 
+
 2. Pekan 2 (24 November 2025-1 Desember 2025)
+
 Walyul'ahdi Maulana Ramadhan : Implementasi API auth
+
 Muhammad Indi Ryan Pratama   :
+
 Salsabila Salimah            :
+
 Aryandana Pascua Patiung     :
+
 Adryan Muhammad Rasyad       : Implementasi rumors I (Read)
 
+
 ---
+
 
 3. Pekan 3 (1 Desember 2025-8 Desember 2025)
+
 Walyul'ahdi Maulana Ramadhan : Implementasi accounts Profil
+
 Muhammad Indi Ryan Pratama   :
+
 Salsabila Salimah            :
+
 Aryandana Pascua Patiung     :
+
 Adryan Muhammad Rasyad       : implementasi rumors II (Create)
 
+
 ---
+
 
 4. Pekan 4 (8 Desember 2025 - 17 Desember 2025)
+
 Walyul'ahdi Maulana Ramadhan :Implementasi dashboard admin
+
 Muhammad Indi Ryan Pratama   :
+
 Salsabila Salimah            :
+
 Aryandana Pascua Patiung     :
+
 Adryan Muhammad Rasyad       : implementasi rumors III (Update & Delete) 
 
+
+
 5. Pekan 5 (17 Desember 2025 - 21 Desember 2025)
+
 Kelompok : Integrasi dan membenarkan error jika ada.
 
+
 ---
+
