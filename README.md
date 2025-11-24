@@ -109,7 +109,7 @@ Walyul'ahdi Maulana Ramadhan : Menginisiasi Flutter Project, Desain Model, API S
 
 Muhammad Indi Ryan Pratama   :
 
-Salsabila Salimah            :
+Salsabila Salimah            : Melengkapi deskripsi github
 
 Aryandana Pascua Patiung     : Mulai melakukan design Figma
 
@@ -125,7 +125,7 @@ Walyul'ahdi Maulana Ramadhan : Implementasi API auth
 
 Muhammad Indi Ryan Pratama   :
 
-Salsabila Salimah            :
+Salsabila Salimah            : Implementasi design figma modul best eleven
 
 Aryandana Pascua Patiung     : Implementasi create and read page Community
 
@@ -141,7 +141,7 @@ Walyul'ahdi Maulana Ramadhan : Implementasi accounts Profil
 
 Muhammad Indi Ryan Pratama   :
 
-Salsabila Salimah            :
+Salsabila Salimah            : Implementasi create and read modul best eleven
 
 Aryandana Pascua Patiung     : Implementasi edit page Community
 
@@ -157,7 +157,7 @@ Walyul'ahdi Maulana Ramadhan : Implementasi dashboard admin
 
 Muhammad Indi Ryan Pratama   :
 
-Salsabila Salimah            :
+Salsabila Salimah            : Implementasi edit dan delete player pada modul best eleven
 
 Aryandana Pascua Patiung     : Implementasi delete page Community
 
