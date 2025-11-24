@@ -111,7 +111,7 @@ Muhammad Indi Ryan Pratama   :
 
 Salsabila Salimah            :
 
-Aryandana Pascua Patiung     : Membuat link Figma project
+Aryandana Pascua Patiung     : Membuat (link) project Figma
 
 Adryan Muhammad Rasyad       : Membuat deskripsi github & Desain Model & API Setup
 
