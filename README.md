@@ -127,7 +127,7 @@ Muhammad Indi Ryan Pratama   :
 
 Salsabila Salimah            :
 
-Aryandana Pascua Patiung     :
+Aryandana Pascua Patiung     : Implementasi create and read page Community
 
 Adryan Muhammad Rasyad       : Implementasi rumors I (Read)
 
@@ -143,7 +143,7 @@ Muhammad Indi Ryan Pratama   :
 
 Salsabila Salimah            :
 
-Aryandana Pascua Patiung     :
+Aryandana Pascua Patiung     : Implementasi edit page Community
 
 Adryan Muhammad Rasyad       : implementasi rumors II (Create)
 
@@ -159,7 +159,7 @@ Muhammad Indi Ryan Pratama   :
 
 Salsabila Salimah            :
 
-Aryandana Pascua Patiung     :
+Aryandana Pascua Patiung     : Implementasi delete page Community
 
 Adryan Muhammad Rasyad       : implementasi rumors III (Update & Delete) 
 
