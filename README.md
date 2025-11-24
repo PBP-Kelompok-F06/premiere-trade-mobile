@@ -2,6 +2,7 @@
 
 `Premiere Trade Mobile` merupakan Mobile App transfer jual beli pemain bola, di mana pemilik `Admin Club` dapat melakukan jual beli pemain pada app ini dengan sesama pemilik `Admin Club` lainnya. Terdapat juga `Fan Account` yang bisa melihat siapa saja pemain yang sedang dimasukkan ke dalam daftar transfer oleh setiap klub, serta melihat nilai pasar dari semua pemain yang ada.
 
+
 ---
 
 ## Anggota Kelompok
