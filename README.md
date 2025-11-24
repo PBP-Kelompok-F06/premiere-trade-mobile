@@ -107,7 +107,7 @@ Proyek ini memiliki empat jenis pengguna dengan hak akses yang berbeda:
 
 Walyul'ahdi Maulana Ramadhan : Menginisiasi Flutter Project, Desain Model, API Setup
 
-Muhammad Indi Ryan Pratama   :
+Muhammad Indi Ryan Pratama   : Melengkapi deskripsi github
 
 Salsabila Salimah            : Melengkapi deskripsi github
 
@@ -123,7 +123,7 @@ Adryan Muhammad Rasyad       : Membuat deskripsi github & Desain Model & API Set
 
 Walyul'ahdi Maulana Ramadhan : Implementasi API auth
 
-Muhammad Indi Ryan Pratama   :
+Muhammad Indi Ryan Pratama   : Implementasi Transaction I
 
 Salsabila Salimah            : Implementasi design figma modul best eleven
 
@@ -139,7 +139,7 @@ Adryan Muhammad Rasyad       : Implementasi rumors I (Read)
 
 Walyul'ahdi Maulana Ramadhan : Implementasi accounts Profil
 
-Muhammad Indi Ryan Pratama   :
+Muhammad Indi Ryan Pratama   : Implementasi Transaction II
 
 Salsabila Salimah            : Implementasi create and read modul best eleven
 
@@ -155,7 +155,7 @@ Adryan Muhammad Rasyad       : implementasi rumors II (Create)
 
 Walyul'ahdi Maulana Ramadhan : Implementasi dashboard admin
 
-Muhammad Indi Ryan Pratama   :
+Muhammad Indi Ryan Pratama   : Implementasi Transaction III
 
 Salsabila Salimah            : Implementasi edit dan delete player pada modul best eleven
 
