@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../constants/styles.dart';
 
+String getProxiedUrl(String originalUrl) {
+  // Jika URL kosong/null, kembalikan string kosong
+  if (originalUrl.isEmpty) return "";
+
+  // Bungkus URL asli dengan wsrv.nl
+  return "https://wsrv.nl/?url=$originalUrl";
+}
+
 class PlayerCard extends StatelessWidget {
   final String playerName;
   final String clubName;
@@ -44,19 +52,21 @@ class PlayerCard extends StatelessWidget {
             Container(
               width: 100,
               height: 100,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  bottomLeft: Radius.circular(16),
-                ),
-                image: DecorationImage(
-                  image: NetworkImage(imageUrl),
-                  fit: BoxFit.cover,
-                ),
+              child: Image.network(
+                // PANGGIL FUNGSI DI SINI
+                getProxiedUrl(imageUrl),
+
+                fit: BoxFit.cover,
+
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.person, color: Colors.grey),
+                  );
+                },
               ),
             ),
-            
+
             // Bagian Info (Tengah & Kanan)
             Expanded(
               child: Padding(
@@ -66,7 +76,8 @@ class PlayerCard extends StatelessWidget {
                   children: [
                     // Posisi (Badge Kecil)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppColors.secondary.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(4),
@@ -74,20 +85,20 @@ class PlayerCard extends StatelessWidget {
                       child: Text(
                         position,
                         style: TextStyle(
-                          color: AppColors.primary, 
-                          fontWeight: FontWeight.bold, 
-                          fontSize: 10
-                        ),
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10),
                       ),
                     ),
                     const SizedBox(height: 4),
-                    
+
                     // Nama Pemain
-                    Text(playerName, style: AppTextStyles.h2.copyWith(fontSize: 16)),
+                    Text(playerName,
+                        style: AppTextStyles.h2.copyWith(fontSize: 16)),
                     Text(clubName, style: AppTextStyles.caption),
-                    
+
                     const SizedBox(height: 8),
-                    
+
                     // Harga (Market Value)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
