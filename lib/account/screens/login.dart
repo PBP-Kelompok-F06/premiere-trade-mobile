@@ -1,0 +1,146 @@
+import 'package:flutter/material.dart';
+import 'package:pbp_django_auth/pbp_django_auth.dart';
+import 'package:provider/provider.dart';
+import 'register.dart';
+import '../../main/screens/homepage.dart';
+import '../../core/constants/colors.dart';
+import '../../core/widgets/primary_button.dart';
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final request = context.watch<CookieRequest>();
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Logo atau Judul
+              const Icon(Icons.shield, size: 80, color: AppColors.primary),
+              const SizedBox(height: 16),
+              const Text(
+                "PREMIERE TRADE",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const SizedBox(height: 40),
+
+              // Input Username
+              TextField(
+                controller: _usernameController,
+                decoration: InputDecoration(
+                  labelText: 'Username',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.person),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Input Password
+              TextField(
+                controller: _passwordController,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.lock),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 32),
+
+              // Tombol Login
+              PremiereButton(
+                text: "LOGIN",
+                onPressed: () async {
+                  setState(() => _isLoading = true);
+
+                  String username = _usernameController.text;
+                  String password = _passwordController.text;
+
+                  const String url = "http://localhost:8000/auth/login/";
+
+                  try {
+                    final response = await request.login(url, {
+                      'username': username,
+                      'password': password,
+                    });
+
+                    if (request.loggedIn) {
+                      String message = response['message'];
+                      String uname = response['username'];
+                      if (context.mounted) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const Homepage()),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("$message Selamat datang, $uname."),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
+                      }
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(response['message'] ?? "Login gagal"),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    // Error handling
+                  } finally {
+                    if (mounted) setState(() => _isLoading = false);
+                  }
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              // Link ke Register
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const RegisterScreen()),
+                  );
+                },
+                child: const Text("Don't have an account? Register here"),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
