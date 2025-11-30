@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
-import '../models/club_model.dart'; // Pastikan path model benar
+import '../models/club_model.dart';
 import '../../core/constants/colors.dart';
 import '../../account/screens/login.dart';
 import 'list_player.dart';
+
+String getProxiedUrl(String? url) {
+  if (url == null || url.isEmpty) return "";
+  return "https://wsrv.nl/?url=$url&output=png";
+}
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -19,9 +24,6 @@ class _HomepageState extends State<Homepage> {
     // Sesuaikan URL
     final response = await request.get('http://localhost:8000/api/clubs/');
 
-    // Karena request.get sudah mengembalikan List Dynamic / Map Dynamic,
-    // kita perlu mapping manual sedikit berbeda dari http.get biasa
-    // atau kita pastikan data yang masuk valid
     var data = response;
 
     List<Club> listClub = [];
@@ -39,7 +41,8 @@ class _HomepageState extends State<Homepage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Premiere Trade", style: TextStyle(color: Colors.white)),
+        title:
+            const Text("Premiere Trade", style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primary,
         actions: [
           // Tombol Logout di AppBar
@@ -57,7 +60,8 @@ class _HomepageState extends State<Homepage> {
                   ));
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => const LoginScreen()),
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -69,13 +73,13 @@ class _HomepageState extends State<Homepage> {
           ),
         ],
       ),
-      // Drawer (Menu Samping) - Sesuai Tutorial PBP
+      // Drawer
       drawer: Drawer(
         child: ListView(
           children: [
             const UserAccountsDrawerHeader(
-              accountName: Text("User Premiere Trade"), 
-              accountEmail: Text("user@ui.ac.id"),
+              accountName: Text("Premiere Trade"),
+              accountEmail: Text(""),
               decoration: BoxDecoration(color: AppColors.primary),
             ),
             ListTile(
@@ -126,17 +130,25 @@ class _HomepageState extends State<Homepage> {
                         child: Row(
                           children: [
                             // Gambar logo jika ada, kalau null pakai icon
-                             SizedBox(
-                                width: 50, height: 50,
-                                child: (club.logoUrl != null && club.logoUrl!.isNotEmpty)
-                                    ? Image.network(club.logoUrl!, errorBuilder: (_,__,___) => const Icon(Icons.shield))
-                                    : const Icon(Icons.shield, color: AppColors.primary, size: 40),
+                            SizedBox(
+                              width: 50,
+                              height: 50,
+                              child: Image.network(
+                                getProxiedUrl(club.logoUrl),
+                                width: 60,
+                                height: 60,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(Icons.shield,
+                                      size: 60, color: Colors.grey);
+                                },
+                              ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
                               child: Text(
                                 club.name,
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
                               ),
                             ),
                             const Icon(Icons.arrow_forward_ios, size: 16),
