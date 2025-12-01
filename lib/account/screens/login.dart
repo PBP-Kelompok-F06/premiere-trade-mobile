@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 import 'register.dart';
-import '../../main/screens/homepage.dart';
+import '../../main/screens/scaffold.dart';
 import '../../core/constants/colors.dart';
 import '../../core/widgets/primary_button.dart';
 
@@ -97,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const Homepage()),
+                              builder: (context) => const MainScaffold()),
                         );
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(

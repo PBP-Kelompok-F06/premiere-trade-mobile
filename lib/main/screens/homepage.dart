@@ -44,52 +44,7 @@ class _HomepageState extends State<Homepage> {
         title:
             const Text("Premiere Trade", style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primary,
-        actions: [
-          // Tombol Logout di AppBar
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () async {
-              final response = await request.logout(
-                  "http://localhost:8000/auth/logout/"); // Endpoint logout Django
-              String message = response["message"];
-              if (context.mounted) {
-                if (response['status']) {
-                  String uname = response["username"];
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("$message Sampai jumpa, $uname."),
-                  ));
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const LoginScreen()),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text("Logout gagal"),
-                  ));
-                }
-              }
-            },
-          ),
-        ],
-      ),
-      // Drawer
-      drawer: Drawer(
-        child: ListView(
-          children: [
-            const UserAccountsDrawerHeader(
-              accountName: Text("Premiere Trade"),
-              accountEmail: Text(""),
-              decoration: BoxDecoration(color: AppColors.primary),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Halaman Utama'),
-              onTap: () => Navigator.pop(context),
-            ),
-            // Tambahkan menu lain di sini (Community, Rumors, dll)
-          ],
-        ),
+        actions: [],
       ),
       body: FutureBuilder(
         future: fetchClubs(request),
