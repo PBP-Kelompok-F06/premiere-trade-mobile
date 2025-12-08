@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:pbp_django_auth/pbp_django_auth.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/colors.dart';
 import '../../core/widgets/bottom_navbar.dart';
 import 'homepage.dart';
 import '../../account/screens/profile.dart';
 import '../../community/screens/community_page.dart';
+import '../../best_eleven/screens/best_eleven_list_page.dart';
+import '../../best_eleven/screens/best_eleven_builder_page.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -14,9 +18,11 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> {
   int _selectedIndex = 0;
+  final GlobalKey<BestElevenListPageState> _bestElevenKey = GlobalKey();
 
-  final List<Widget> _pages = [
+  late final List<Widget> _pages = [
     const Homepage(),
+    BestElevenListPage(key: _bestElevenKey),
     const Center(child: Text("Halaman Bursa Transfer (Market)")),
     const CommunityPage(),
     const ProfileScreen(),
@@ -34,10 +40,12 @@ class _MainScaffoldState extends State<MainScaffold> {
       case 0:
         return "Premiere Trade";
       case 1:
-        return "Market";
+        return "Best Eleven";
       case 2:
-        return "Community";
+        return "Market";
       case 3:
+        return "Community";
+      case 4:
         return "My Profile";
       default:
         return "Premiere Trade";
@@ -90,8 +98,8 @@ class _MainScaffoldState extends State<MainScaffold> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.swap_horiz),
-              title: const Text('Bursa Transfer'),
+              leading: const Icon(Icons.sports_soccer),
+              title: const Text('Best Eleven'),
               selected: _selectedIndex == 1,
               onTap: () {
                 _onItemTapped(1);
@@ -99,8 +107,8 @@ class _MainScaffoldState extends State<MainScaffold> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.forum),
-              title: const Text('Community'),
+              leading: const Icon(Icons.swap_horiz),
+              title: const Text('Bursa Transfer'),
               selected: _selectedIndex == 2,
               onTap: () {
                 _onItemTapped(2);
@@ -108,11 +116,20 @@ class _MainScaffoldState extends State<MainScaffold> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
+              leading: const Icon(Icons.forum),
+              title: const Text('Community'),
               selected: _selectedIndex == 3,
               onTap: () {
                 _onItemTapped(3);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Profile'),
+              selected: _selectedIndex == 4,
+              onTap: () {
+                _onItemTapped(4);
                 Navigator.pop(context);
               },
             ), 
@@ -123,10 +140,34 @@ class _MainScaffoldState extends State<MainScaffold> {
         index: _selectedIndex,
         children: _pages,
       ),
+      floatingActionButton: _getFloatingActionButton(),
       bottomNavigationBar: BottomNavBar(
         selectedIndex: _selectedIndex,
         onItemTapped: _onItemTapped,
       ),
     );
+  }
+  
+  Widget? _getFloatingActionButton() {
+    switch (_selectedIndex) {
+      case 1: // Best Eleven
+        return FloatingActionButton(
+          onPressed: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const BestElevenBuilderPage(),
+              ),
+            );
+            (_bestElevenKey.currentState as BestElevenListPageState?)?.refreshData();
+          },
+          child: const Icon(Icons.add),
+        );
+      case 3: // Community
+        // Community FAB functionality - to be implemented in CommunityPage itself
+        return null;
+      default:
+        return null;
+    }
   }
 }

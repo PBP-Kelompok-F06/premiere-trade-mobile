@@ -83,6 +83,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   String username = _usernameController.text;
                   String password = _passwordController.text;
 
+                  // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
+                  // If you using chrome, use URL http://localhost:8000
                   const String url = "http://localhost:8000/auth/login/";
 
                   try {

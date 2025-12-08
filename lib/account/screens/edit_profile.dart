@@ -83,6 +83,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       if (_formKey.currentState!.validate()) {
                         setState(() => _isLoading = true);
                         try {
+                          // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
+                          // If you using chrome, use URL http://localhost:8000
                           final response = await request.postJson(
                             "http://localhost:8000/accounts/api/profile/edit/",
                             jsonEncode({

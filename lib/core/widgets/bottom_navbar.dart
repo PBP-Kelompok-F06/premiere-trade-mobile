@@ -31,6 +31,11 @@ class BottomNavBar extends StatelessWidget {
             label: 'Home',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.sports_soccer_outlined),
+            activeIcon: Icon(Icons.sports_soccer),
+            label: 'Best Eleven',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.swap_horiz_outlined), // Icon Bursa Transfer
             activeIcon: Icon(Icons.swap_horiz),
             label: 'Market',
@@ -50,7 +55,7 @@ class BottomNavBar extends StatelessWidget {
         selectedItemColor: AppColors.primary,
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed, // Agar 4 item tetap terlihat rapi
+        type: BottomNavigationBarType.fixed, // Agar 5 item tetap terlihat rapi
         onTap: onItemTapped,
         backgroundColor: Colors.white,
         elevation: 0,

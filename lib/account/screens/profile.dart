@@ -15,8 +15,9 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   dynamic fetchProfile(CookieRequest request) async {
-    final response =
-        await request.get('http://localhost:8000/accounts/api/profile/');
+    // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
+    // If you using chrome, use URL http://localhost:8000
+    final response = await request.get('http://localhost:8000/accounts/api/profile/');
     return response;
   }
 
@@ -109,8 +110,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   width: double.infinity,
                   child: OutlinedButton(
                     onPressed: () async {
-                      final response = await request
-                          .logout("http://localhost:8000/auth/logout/");
+                      // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
+                      // If you using chrome, use URL http://localhost:8000
+                      final response = await request.logout(
+                        "http://localhost:8000/auth/logout/",
+                      );
                       if (context.mounted && response['status']) {
                         Navigator.pushReplacement(
                           context,

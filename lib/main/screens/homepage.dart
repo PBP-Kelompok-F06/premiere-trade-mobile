@@ -21,7 +21,8 @@ class Homepage extends StatefulWidget {
 class _HomepageState extends State<Homepage> {
   // Fungsi Fetch menggunakan CookieRequest
   Future<List<Club>> fetchClubs(CookieRequest request) async {
-    // Sesuaikan URL
+    // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
+    // If you using chrome, use URL http://localhost:8000
     final response = await request.get('http://localhost:8000/api/clubs/');
 
     var data = response;

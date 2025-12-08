@@ -18,9 +18,12 @@ class ListPlayerPage extends StatefulWidget {
 class _ListPlayerPageState extends State<ListPlayerPage> {
   Future<List<Player>> fetchPlayers(CookieRequest request) async {
     // URL Endpoint API player by club
+    // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
+    // If you using chrome, use URL http://localhost:8000
     // Pastikan ID club dikonversi ke String jika perlu
-    final response = await request
-        .get('http://localhost:8000/api/club/${widget.club.pk}/players/');
+    final response = await request.get(
+      'http://localhost:8000/api/club/${widget.club.pk}/players/',
+    );
 
     var data = response;
     List<Player> listPlayer = [];
