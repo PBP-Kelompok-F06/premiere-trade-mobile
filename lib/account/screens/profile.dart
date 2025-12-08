@@ -24,29 +24,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text("My Profile", style: TextStyle(color: Colors.white)),
-        backgroundColor: AppColors.primary,
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-      ),
-      body: FutureBuilder(
+    return Container(
+      color: AppColors.background,
+      child: FutureBuilder(
         future: fetchProfile(request),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
+ 
           if (snapshot.hasError ||
               !snapshot.hasData ||
               (snapshot.data as Map<String, dynamic>)['status'] == false) {
             return const Center(child: Text("Gagal memuat profil."));
           }
-
+ 
           final data = snapshot.data! as Map<String, dynamic>;
-
+ 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20.0),
             child: Column(
@@ -58,7 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Icon(Icons.person, size: 60, color: Colors.white),
                 ),
                 const SizedBox(height: 16),
-
+ 
                 // Username & Role
                 Text(
                   data['username'] ?? "User",
@@ -82,16 +76,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 30),
-
+ 
                 // Info Tile (Hanya data yang ada di Model)
                 _buildInfoTile(Icons.email, "Email", data['email']),
                 _buildInfoTile(
                     Icons.person_outline, "First Name", data['first_name']),
                 _buildInfoTile(
                     Icons.person_outline, "Last Name", data['last_name']),
-
+ 
                 const SizedBox(height: 30),
-
+ 
                 PremiereButton(
                   text: "EDIT PROFILE",
                   onPressed: () async {
@@ -108,9 +102,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     if (result == true) setState(() {});
                   },
                 ),
-
+ 
                 const SizedBox(height: 12),
-
+ 
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(

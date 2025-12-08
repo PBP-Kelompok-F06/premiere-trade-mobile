@@ -5,6 +5,7 @@ import 'register.dart';
 import '../../main/screens/scaffold.dart';
 import '../../core/constants/colors.dart';
 import '../../core/widgets/primary_button.dart';
+import '../../core/providers/user_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -93,7 +94,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (request.loggedIn) {
                       String message = response['message'];
                       String uname = response['username'];
+                      
                       if (context.mounted) {
+                        // SIMPAN USERNAME KE PROVIDER
+                        context.read<UserProvider>().setUsername(uname);
+                        
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
