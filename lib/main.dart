@@ -3,8 +3,11 @@ import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'core/providers/user_provider.dart';
+
 // Import Halaman Login (Halaman pertama yang muncul)
 import 'account/screens/login.dart';
+import 'main/screens/splash_screen.dart';
 
 // Import Design System (Warna)
 import 'core/constants/colors.dart';
@@ -18,13 +21,18 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Provider(
-      create: (_) {
-        // Inisialisasi CookieRequest untuk menangani otentikasi (Login/Logout)
-        // Objek ini akan dibagikan ke seluruh aplikasi via Provider
-        CookieRequest request = CookieRequest();
-        return request;
-      },
+    return MultiProvider(
+      providers: [
+        Provider(
+          create: (_) {
+            CookieRequest request = CookieRequest();
+            return request;
+          },
+        ),
+        ChangeNotifierProvider(
+          create: (_) => UserProvider(),
+        ),
+      ],
       child: MaterialApp(
         title: 'Premiere Trade',
         debugShowCheckedModeBanner:
@@ -69,8 +77,8 @@ class MyApp extends StatelessWidget {
         ),
 
         // --- HALAMAN AWAL ---
-        // Kita arahkan ke LoginScreen terlebih dahulu
-        home: const LoginScreen(),
+        // Kita arahkan ke SplashScreen untuk cek sesi dulu
+        home: const SplashScreen(),
       ),
     );
   }
