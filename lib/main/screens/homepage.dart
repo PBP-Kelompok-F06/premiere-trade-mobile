@@ -21,19 +21,33 @@ class Homepage extends StatefulWidget {
 class _HomepageState extends State<Homepage> {
   // Fungsi Fetch menggunakan CookieRequest
   Future<List<Club>> fetchClubs(CookieRequest request) async {
-    // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
-    // If you using chrome, use URL http://localhost:8000
-    final response = await request.get('http://localhost:8000/api/clubs/');
+    // Sesuaikan URL
+    try {
+      final response = await request.get('http://localhost:8000/api/clubs/');
 
-    var data = response;
-
-    List<Club> listClub = [];
-    for (var d in data) {
-      if (d != null) {
-        listClub.add(Club.fromJson(d));
+      if (response == null) {
+        return [];
       }
+
+      var data = response;
+
+      List<Club> listClub = [];
+      if (data is List) {
+        for (var d in data) {
+          if (d != null) {
+            try {
+              listClub.add(Club.fromJson(d));
+            } catch (e) {
+              print('Error parsing club: $e');
+            }
+          }
+        }
+      }
+      return listClub;
+    } catch (e) {
+      print('Error fetching clubs: $e');
+      return [];
     }
-    return listClub;
   }
 
   @override
@@ -43,10 +57,34 @@ class _HomepageState extends State<Homepage> {
     return FutureBuilder(
         future: fetchClubs(request),
         builder: (context, AsyncSnapshot snapshot) {
-          if (snapshot.data == null) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Error: ${snapshot.error}",
+                    style: const TextStyle(color: Colors.red, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {}); // Retry
+                    },
+                    child: const Text('Coba Lagi'),
+                  ),
+                ],
+              ),
+            );
+          } else if (snapshot.data == null) {
             return const Center(child: CircularProgressIndicator());
           } else {
-            if (!snapshot.hasData) {
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return const Column(
                 children: [
                   Text(

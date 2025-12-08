@@ -153,13 +153,16 @@ class _MainScaffoldState extends State<MainScaffold> {
       case 1: // Best Eleven
         return FloatingActionButton(
           onPressed: () async {
+            if (!mounted) return;
             await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => const BestElevenBuilderPage(),
               ),
             );
-            (_bestElevenKey.currentState as BestElevenListPageState?)?.refreshData();
+            if (mounted) {
+              (_bestElevenKey.currentState as BestElevenListPageState?)?.refreshData();
+            }
           },
           child: const Icon(Icons.add),
         );
