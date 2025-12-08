@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 // Import Halaman Login (Halaman pertama yang muncul)
 import 'account/screens/login.dart';
+import 'best_eleven/screens/best_eleven_list_page.dart';
 
 // Import Design System (Warna)
 import 'core/constants/colors.dart';
