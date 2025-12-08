@@ -39,14 +39,7 @@ class _HomepageState extends State<Homepage> {
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title:
-            const Text("Premiere Trade", style: TextStyle(color: Colors.white)),
-        backgroundColor: AppColors.primary,
-        actions: [],
-      ),
-      body: FutureBuilder(
+    return FutureBuilder(
         future: fetchClubs(request),
         builder: (context, AsyncSnapshot snapshot) {
           if (snapshot.data == null) {
@@ -117,7 +110,6 @@ class _HomepageState extends State<Homepage> {
             }
           }
         },
-      ),
-    );
+      );
   }
 }
