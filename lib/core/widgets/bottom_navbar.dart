@@ -46,6 +46,11 @@ class BottomNavBar extends StatelessWidget {
             label: 'Community',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.record_voice_over_outlined),
+            activeIcon: Icon(Icons.record_voice_over),
+            label: 'Rumors',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person),
             label: 'Profile',
