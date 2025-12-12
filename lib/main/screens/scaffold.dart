@@ -5,6 +5,7 @@ import 'homepage.dart';
 import '../../account/screens/profile.dart';
 import '../../community/screens/community_page.dart';
 import '../../best_eleven/screens/best_eleven_builder_page.dart';
+import '../../rumor/screens/rumors_page.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -21,6 +22,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     const BestElevenBuilderPage(hideScaffold: true),
     const Center(child: Text("Halaman Bursa Transfer (Market)")),
     const CommunityPage(),
+    const RumorsPage(),
     const ProfileScreen(),
   ];
 
@@ -42,6 +44,8 @@ class _MainScaffoldState extends State<MainScaffold> {
       case 3:
         return "Community";
       case 4:
+        return "Rumors";
+      case 5:
         return "My Profile";
       default:
         return "Premiere Trade";
@@ -121,11 +125,20 @@ class _MainScaffoldState extends State<MainScaffold> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
+              leading: const Icon(Icons.record_voice_over),
+              title: const Text('Rumors'),
               selected: _selectedIndex == 4,
               onTap: () {
                 _onItemTapped(4);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Profile'),
+              selected: _selectedIndex == 5,
+              onTap: () {
+                _onItemTapped(5);
                 Navigator.pop(context);
               },
             ), 
