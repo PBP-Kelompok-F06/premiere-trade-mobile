@@ -16,6 +16,7 @@ class BestElevenListPageState extends State<BestElevenListPage> {
   List<BestElevenFormation> _formations = [];
   bool _isLoading = true;
   String? _errorMessage;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
@@ -40,6 +41,26 @@ class BestElevenListPageState extends State<BestElevenListPage> {
         _formations = formations;
         _isLoading = false;
       });
+
+      // Auto-navigate to builder if no formations and haven't navigated yet
+      if (formations.isEmpty && !_hasNavigated && mounted) {
+        _hasNavigated = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final navigatorContext = context;
+          Navigator.push(
+            navigatorContext,
+            MaterialPageRoute(
+              builder: (context) => const BestElevenBuilderPage(),
+            ),
+          ).then((_) {
+            // Refresh after returning from builder
+            if (mounted) {
+              _fetchFormations();
+            }
+          });
+        });
+      }
     } catch (e) {
       setState(() {
         _errorMessage = 'Gagal memuat formasi: $e';
@@ -67,7 +88,7 @@ class BestElevenListPageState extends State<BestElevenListPage> {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed == true && mounted) {
       try {
         final request = context.read<CookieRequest>();
         final service = BestElevenService(request);
@@ -104,79 +125,122 @@ class BestElevenListPageState extends State<BestElevenListPage> {
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _fetchFormations,
-                        child: const Text('Coba Lagi'),
-                      ),
-                    ],
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = MediaQuery.of(context).size.width < 600;
+                      return Padding(
+                        padding: EdgeInsets.all(isMobile ? 20 : 32),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: isMobile ? 48 : 64,
+                              color: Colors.red,
+                            ),
+                            SizedBox(height: isMobile ? 12 : 16),
+                            Text(
+                              _errorMessage!,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: isMobile ? 13 : 16,
+                              ),
+                            ),
+                            SizedBox(height: isMobile ? 16 : 24),
+                            ElevatedButton(
+                              onPressed: _fetchFormations,
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isMobile ? 24 : 32,
+                                  vertical: isMobile ? 14 : 12,
+                                ),
+                                minimumSize: Size(0, isMobile ? 48 : 44),
+                              ),
+                              child: Text(
+                                'Coba Lagi',
+                                style: TextStyle(fontSize: isMobile ? 14 : 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 )
               : _formations.isEmpty
                   ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.sports_soccer, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text(
-                            'Belum ada formasi yang dibuat.',
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
-                          ),
-                        ],
-                      ),
+                      child: CircularProgressIndicator(),
                     )
                   : RefreshIndicator(
                       onRefresh: _fetchFormations,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _formations.length,
-                        itemBuilder: (context, index) {
-                          final formation = _formations[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            elevation: 2,
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Colors.indigo,
-                                child: Text(
-                                  formation.layout,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isMobile = MediaQuery.of(context).size.width < 600;
+                          return ListView.builder(
+                            padding: EdgeInsets.all(isMobile ? 12 : 16),
+                            itemCount: _formations.length,
+                            itemBuilder: (context, index) {
+                              final formation = _formations[index];
+                              return Card(
+                                margin: EdgeInsets.only(bottom: isMobile ? 12 : 16),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
                                 ),
-                              ),
-                              title: Text(
-                                formation.name,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              subtitle: Text('Formasi: ${formation.layout}'),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _deleteFormation(formation.id, formation.name),
-                                tooltip: 'Hapus',
-                              ),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => BestElevenBuilderPage(formationId: formation.id),
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: isMobile ? 12 : 16,
+                                    vertical: isMobile ? 8 : 12,
                                   ),
-                                ).then((_) => _fetchFormations());
-                              },
-                            ),
+                                  leading: CircleAvatar(
+                                    radius: isMobile ? 22 : 28,
+                                    backgroundColor: Colors.indigo,
+                                    child: Text(
+                                      formation.layout,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: isMobile ? 11 : 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    formation.name,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: isMobile ? 15 : 16,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    'Formasi: ${formation.layout}',
+                                    style: TextStyle(fontSize: isMobile ? 12 : 14),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: Icon(
+                                      Icons.delete,
+                                      color: Colors.red,
+                                      size: isMobile ? 22 : 24,
+                                    ),
+                                    onPressed: () => _deleteFormation(formation.id, formation.name),
+                                    tooltip: 'Hapus',
+                                    padding: EdgeInsets.all(isMobile ? 4 : 8),
+                                    constraints: BoxConstraints(
+                                      minWidth: isMobile ? 40 : 48,
+                                      minHeight: isMobile ? 40 : 48,
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => BestElevenBuilderPage(formationId: formation.id),
+                                      ),
+                                    ).then((_) => _fetchFormations());
+                                  },
+                                ),
+                              );
+                            },
                           );
                         },
                       ),

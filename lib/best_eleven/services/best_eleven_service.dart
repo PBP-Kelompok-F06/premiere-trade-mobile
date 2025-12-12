@@ -184,43 +184,119 @@ class BestElevenService {
       final payload = {
         'name': name,
         'layout': layout,
-        'formation_id': formationId,
+        if (formationId != null) 'formation_id': formationId,
         'player_ids': playerIds,
       };
       
       final url = '$baseUrl/best_eleven/api/save-formation/';
       print('Saving formation to: $url');
-      final response = await request.postJson(
-        url,
-        jsonEncode(payload),
-      );
+      print('Payload: $payload');
       
-      if (response == null) {
-        print('Response is null');
-        return {'error': 'No response from server'};
+      // Try to get CSRF token first if needed
+      // CookieRequest.postJson should handle CSRF automatically, but let's try explicit approach
+      try {
+        final response = await request.postJson(
+          url,
+          jsonEncode(payload),
+        );
+        
+        if (response == null) {
+          print('Response is null - might be a 204 No Content or error');
+          return {'error': 'No response from server. Please check if you are authenticated.'};
+        }
+        
+        // Check if response is a string (HTML error page)
+        if (response is String) {
+          if (response.contains('<!DOCTYPE') || response.contains('<html')) {
+            print('Error: Received HTML instead of JSON.');
+            print('Response preview: ${response.substring(0, response.length > 200 ? 200 : response.length)}');
+            
+            // Try to extract error message from HTML
+            String errorMsg = 'Server returned HTML instead of JSON. ';
+            if (response.contains('403')) {
+              errorMsg += '403 Forbidden - Please check authentication and CSRF token. ';
+            } else if (response.contains('CSRF')) {
+              errorMsg += 'CSRF verification failed. ';
+            } else if (response.contains('login') || response.contains('Login')) {
+              errorMsg += 'Please log in again. ';
+            }
+            errorMsg += 'Check Django endpoint configuration.';
+            
+            return {'error': errorMsg};
+          }
+          // If response is a string but not HTML, might be an error message
+          return {'error': response};
+        }
+        
+        // Validasi response bukan HTML/error page
+        if (response is Map) {
+          // Cast to Map<String, dynamic> for type safety
+          final responseMap = Map<String, dynamic>.from(response);
+          
+          if (responseMap['error'] != null) {
+            print('API returned error: ${responseMap['error']}');
+            return {'error': responseMap['error']};
+          }
+          
+          // Check for common error patterns
+          if (responseMap['detail'] != null) {
+            return {'error': responseMap['detail'].toString()};
+          }
+          
+          if (responseMap['message'] != null && responseMap['message'].toString().toLowerCase().contains('error')) {
+            return {'error': responseMap['message'].toString()};
+          }
+          
+          // Success response
+          return responseMap;
+        }
+        
+        // If response is not a Map, try to cast it
+        if (response != null) {
+          return Map<String, dynamic>.from({'error': 'Unexpected response type: ${response.runtimeType}'});
+        }
+        
+        return {'error': 'Null response from server'};
+      } catch (postError) {
+        print('PostJson error: $postError');
+        
+        // Check if it's a 403 or authentication error
+        final errorStr = postError.toString().toLowerCase();
+        if (errorStr.contains('403') || errorStr.contains('forbidden')) {
+          return {
+            'error': '403 Forbidden: Authentication failed or CSRF token invalid. Please ensure:\n'
+                '1. You are logged in\n'
+                '2. Django endpoint has @csrf_exempt or proper CSRF handling\n'
+                '3. Session cookies are valid'
+          };
+        }
+        
+        if (errorStr.contains('401') || errorStr.contains('unauthorized')) {
+          return {'error': '401 Unauthorized: Please log in again.'};
+        }
+        
+        throw postError; // Re-throw to outer catch
       }
-      
-      // Validasi response bukan HTML/error page
-      if (response is String && response.contains('<!DOCTYPE')) {
-        print('Error: Received HTML instead of JSON. Endpoint may not exist or authentication failed.');
-        return {'error': 'Server returned HTML instead of JSON. Please check endpoint and authentication.'};
-      }
-      
-      if (response is Map && response['error'] != null) {
-        print('API returned error: ${response['error']}');
-        return {'error': response['error']};
-      }
-      
-      return response;
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('Error saving formation: $e');
+      print('Stack trace: $stackTrace');
+      
+      String errorMessage = 'Error menyimpan formasi: $e';
+      
       if (e.toString().contains('<!DOCTYPE') || e.toString().contains('Unexpected token')) {
-        print('Error: API returned HTML instead of JSON. Please check:');
-        print('1. Django server is running on $baseUrl');
-        print('2. Endpoint /best_eleven/api/save-formation/ exists');
-        print('3. User is authenticated');
+        errorMessage = 'Server returned HTML instead of JSON. Please check:\n'
+            '1. Django server is running on $baseUrl\n'
+            '2. Endpoint /best_eleven/api/save-formation/ exists\n'
+            '3. User is authenticated\n'
+            '4. Endpoint uses @csrf_exempt or handles CSRF properly';
+      } else if (e.toString().contains('403')) {
+        errorMessage = '403 Forbidden: Access denied. Please check:\n'
+            '1. You are logged in\n'
+            '2. CSRF token is valid\n'
+            '3. Django endpoint configuration allows this request';
       }
-      return {'error': e.toString()};
+      
+      return {'error': errorMessage};
     }
   }
 

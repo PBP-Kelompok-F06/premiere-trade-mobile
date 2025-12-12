@@ -4,6 +4,16 @@ import 'package:provider/provider.dart';
 import '../models/best_eleven_models.dart';
 import '../services/best_eleven_service.dart';
 
+String getProxiedUrl(String? url) {
+  if (url == null || url.isEmpty) return "";
+  // Jika URL sudah lengkap (http/https), gunakan langsung
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return "https://wsrv.nl/?url=$url&output=png";
+  }
+  // Jika URL relatif, tambahkan base URL dari Django
+  return "https://wsrv.nl/?url=http://localhost:8000$url&output=png";
+}
+
 class PlayerSelectionModal extends StatefulWidget {
   final List<BestElevenClub> clubs;
   final String? requiredPosition; // Posisi yang dibutuhkan untuk slot
@@ -220,19 +230,19 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
                               return Card(
                                 margin: const EdgeInsets.symmetric(vertical: 4),
                                 child: ListTile(
-                                  leading: player.profileImageUrl.isNotEmpty
-                                      ? CircleAvatar(
-                                          radius: 28,
-                                          backgroundImage: NetworkImage(player.profileImageUrl),
-                                          onBackgroundImageError: (_, __) => null,
-                                          child: player.profileImageUrl.isNotEmpty
-                                              ? null
-                                              : const Icon(Icons.person),
-                                        )
-                                      : const CircleAvatar(
-                                          radius: 28,
-                                          child: Icon(Icons.person),
-                                        ),
+                                  leading: CircleAvatar(
+                                    radius: 28,
+                                    backgroundColor: Colors.indigo,
+                                    backgroundImage: player.profileImageUrl.isNotEmpty
+                                        ? NetworkImage(getProxiedUrl(player.profileImageUrl))
+                                        : null,
+                                    onBackgroundImageError: (exception, stackTrace) {
+                                      // Error loading image, will show child instead
+                                    },
+                                    child: player.profileImageUrl.isEmpty
+                                        ? const Icon(Icons.person, color: Colors.white)
+                                        : null,
+                                  ),
                                   title: Text(
                                     player.name,
                                     style: const TextStyle(fontWeight: FontWeight.bold),
