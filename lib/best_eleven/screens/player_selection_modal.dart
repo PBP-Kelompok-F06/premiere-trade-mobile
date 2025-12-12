@@ -31,7 +31,6 @@ class PlayerSelectionModal extends StatefulWidget {
 }
 
 class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
-  final BestElevenService _service = BestElevenService();
   BestElevenClub? _selectedClub;
   List<BestElevenPlayer> _players = [];
   bool _isLoadingPlayers = false;
@@ -79,7 +78,8 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
     final request = context.read<CookieRequest>();
     try {
       print('Fetching players for club: $clubId');
-      final allPlayers = await _service.fetchPlayers(request, clubId: clubId);
+      final service = BestElevenService(request);
+      final allPlayers = await service.fetchPlayers(clubId: clubId);
       print('Received ${allPlayers.length} players');
       
       // Filter berdasarkan posisi jika diperlukan
@@ -128,14 +128,15 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
     }
   }
 
-  String _formatMarketValue(int value) {
-    if (value == 0) {
+  String _formatMarketValue(double? value) {
+    if (value == null || value == 0) {
       return '€0';
     }
-    if (value >= 1000) {
-      return '€${(value / 1000).toStringAsFixed(1)}B';
+    final intValue = value.toInt();
+    if (intValue >= 1000) {
+      return '€${(intValue / 1000).toStringAsFixed(1)}B';
     }
-    return '€${value}M';
+    return '€${intValue}M';
   }
 
   @override
@@ -233,13 +234,13 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
                                   leading: CircleAvatar(
                                     radius: 28,
                                     backgroundColor: Colors.indigo,
-                                    backgroundImage: player.profileImageUrl.isNotEmpty
+                                    backgroundImage: (player.profileImageUrl != null && player.profileImageUrl!.isNotEmpty)
                                         ? NetworkImage(getProxiedUrl(player.profileImageUrl))
                                         : null,
                                     onBackgroundImageError: (exception, stackTrace) {
                                       // Error loading image, will show child instead
                                     },
-                                    child: player.profileImageUrl.isEmpty
+                                    child: (player.profileImageUrl == null || player.profileImageUrl!.isEmpty)
                                         ? const Icon(Icons.person, color: Colors.white)
                                         : null,
                                   ),
@@ -251,14 +252,15 @@ class _PlayerSelectionModalState extends State<PlayerSelectionModal> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       const SizedBox(height: 4),
-                                      Text('${player.position} • ${player.nationality}'),
-                                      Text(
-                                        player.clubName,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
+                                      Text('${player.position} • ${player.nationality ?? "-"}'),
+                                      if (player.clubName != null && player.clubName!.isNotEmpty)
+                                        Text(
+                                          player.clubName!,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
                                         ),
-                                      ),
                                     ],
                                   ),
                                   trailing: Column(

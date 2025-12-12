@@ -684,31 +684,18 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
     _filterPlayers();
     _checkFormCompletion();
     
-    // Show status message
+    // Show status message - tidak perlu menampilkan pesan
+    // Unplaced players akan tetap di skuad tetapi tidak ditempatkan
     if (unplacedPlayers.isNotEmpty) {
-      final names = unplacedPlayers.map((p) => p.name).join(', ');
+      // Silent - tidak perlu menampilkan pesan
     } else if (_selectedPlayers.isNotEmpty && _selectedPlayers.length < 11) {
+      // Silent - tidak perlu menampilkan pesan
     }
   }
 
   void _checkFormCompletion() {
     // Update UI based on completion status
     setState(() {});
-  }
-
-  void _showStatus(String message, bool isError) {
-    setState(() {
-      _statusMessage = message;
-      _isStatusError = isError;
-    });
-    
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted && _statusMessage == message) {
-        setState(() {
-          _statusMessage = null;
-        });
-      }
-    });
   }
 
   String _formatCurrency(double? value) {
@@ -916,7 +903,7 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                   builder: (context, constraints) {
                     final isMobile = MediaQuery.of(context).size.width < 768;
                     return SingleChildScrollView(
-                      padding: EdgeInsets.all(isMobile ? 12 : 16),
+                      padding: EdgeInsets.all(isMobile ? 16 : 16),
                       child: Column(
                         children: [
                           // Status message - sesuai template Django
@@ -956,7 +943,6 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                           LayoutBuilder(
                             builder: (context, innerConstraints) {
                               final isMobileInner = MediaQuery.of(context).size.width < 768;
-                              final isTablet = MediaQuery.of(context).size.width >= 768 && MediaQuery.of(context).size.width <= 1200;
                           
                               if (innerConstraints.maxWidth > 1200) {
                                 // Desktop layout: 3 columns
@@ -1357,7 +1343,7 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
       ),
       elevation: 4,
       child: Padding(
-        padding: EdgeInsets.all(isMobile ? 10 : 12),
+        padding: EdgeInsets.all(isMobile ? 14 : 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1365,14 +1351,14 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
               children: [
                 Icon(
                   Icons.touch_app,
-                  size: isMobile ? 18 : 20,
+                  size: isMobile ? 20 : 20,
                   color: _textLight,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Text(
                   'Pilih Posisi',
                   style: TextStyle(
-                    fontSize: isMobile ? 14 : 16,
+                    fontSize: isMobile ? 16 : 16,
                     fontWeight: FontWeight.bold,
                     color: _textLight,
                   ),
@@ -1397,22 +1383,21 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                 ],
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: isMobile ? 16 : 12),
             Wrap(
-              spacing: isMobile ? 6 : 8,
-              runSpacing: isMobile ? 6 : 8,
+              spacing: isMobile ? 8 : 8,
+              runSpacing: isMobile ? 10 : 8,
               children: slots.map((slotId) {
                 final isSelected = _selectedSlotId == slotId;
                 final hasPlayer = _selectedPlayers.containsKey(slotId);
-                final positionName = _slotPositionMap[slotId] ?? slotId;
                 
                 return InkWell(
                   onTap: () => _handleSlotClick(slotId),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                   child: Container(
                     padding: EdgeInsets.symmetric(
-                      horizontal: isMobile ? 10 : 12,
-                      vertical: isMobile ? 8 : 10,
+                      horizontal: isMobile ? 12 : 12,
+                      vertical: isMobile ? 10 : 10,
                     ),
                     decoration: BoxDecoration(
                       color: isSelected
@@ -1504,7 +1489,7 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
       ),
       elevation: 8,
       child: Padding(
-        padding: EdgeInsets.all(isMobile ? 12 : 16),
+        padding: EdgeInsets.all(isMobile ? 16 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1517,29 +1502,29 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                         decoration: InputDecoration(
                           hintText: '✏️ Nama Formasi',
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(12),
                             borderSide: const BorderSide(color: _cardBorder, width: 2),
                           ),
                           filled: true,
                           fillColor: _cardBg,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                         ),
-                        style: const TextStyle(fontSize: 14),
+                        style: const TextStyle(fontSize: 16),
                         onChanged: (_) => _checkFormCompletion(),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
                         value: _selectedLayout,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(12),
                             borderSide: const BorderSide(color: _cardBorder, width: 2),
                           ),
                           filled: true,
                           fillColor: _cardBg,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                         ),
-                        style: const TextStyle(fontSize: 14),
+                        style: const TextStyle(fontSize: 16),
                         items: _layouts.map((layout) {
                           return DropdownMenuItem(
                             value: layout,
@@ -1606,26 +1591,26 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                       ),
                     ],
                   ),
-            SizedBox(height: isMobile ? 12 : 16),
+            SizedBox(height: isMobile ? 20 : 16),
             
             // Pitch - responsive height
             LayoutBuilder(
               builder: (context, constraints) {
                 final screenHeight = MediaQuery.of(context).size.height;
                 final pitchHeight = isMobile 
-                    ? (screenHeight * 0.35).clamp(280.0, 400.0)
+                    ? (screenHeight * 0.38).clamp(300.0, 420.0)
                     : 550.0;
                 
                 return Container(
                   height: pitchHeight,
                   width: double.infinity,
                   constraints: BoxConstraints(
-                    minHeight: isMobile ? 280 : 450,
-                    maxHeight: isMobile ? 400 : 650,
+                    minHeight: isMobile ? 300 : 450,
+                    maxHeight: isMobile ? 420 : 650,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.green.shade700,
-                    borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
+                    borderRadius: BorderRadius.circular(isMobile ? 12 : 12),
                     border: Border.all(color: Colors.white, width: isMobile ? 1.5 : 2),
                     boxShadow: [
                       BoxShadow(
@@ -1658,12 +1643,12 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
               },
             ),
             
-            SizedBox(height: isMobile ? 12 : 16),
+            SizedBox(height: isMobile ? 20 : 16),
             
             // Quick Position Selector - untuk memudahkan pemilihan posisi
             _buildPositionSelector(isMobile: isMobile),
             
-            SizedBox(height: isMobile ? 12 : 16),
+            SizedBox(height: isMobile ? 20 : 16),
             
             // Action buttons - stacked on mobile
             isMobile
@@ -1676,8 +1661,11 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _primaryPurple,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            minimumSize: const Size(0, 48),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            minimumSize: const Size(0, 52),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           child: const Text(
                             'Kosongkan Pemain',
@@ -1685,7 +1673,7 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -1696,8 +1684,11 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                             backgroundColor: _primaryPurple,
                             foregroundColor: Colors.white,
                             disabledBackgroundColor: Colors.grey,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            minimumSize: const Size(0, 48),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            minimumSize: const Size(0, 52),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           child: _isSaving
                               ? const SizedBox(
@@ -1929,11 +1920,13 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 2 : 3),
+      padding: EdgeInsets.zero,
       child: Align(
         alignment: Alignment.topCenter,
-        child: Padding(
-          padding: EdgeInsets.only(top: isMobile ? 16 : 20),
+        child: Transform.translate(
+          offset: Offset(0, isMobile ? 0 : 0),
+          child: Padding(
+            padding: EdgeInsets.only(top: 0),
           child: player != null
                 ? Column(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -2013,12 +2006,12 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                               ),
                       ),
                     ),
-                    SizedBox(height: isMobile ? 6 : 8),
+                    SizedBox(height: isMobile ? 2 : 3),
                     Flexible(
                       child: Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: isMobile ? 4 : 8,
-                          vertical: isMobile ? 3 : 5,
+                          vertical: isMobile ? 1 : 2,
                         ),
                         decoration: BoxDecoration(
                           color: _textLight,
@@ -2068,12 +2061,12 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: isMobile ? 6 : 8),
+                    SizedBox(height: isMobile ? 2 : 3),
                     Flexible(
                       child: Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: isMobile ? 6 : 8,
-                          vertical: isMobile ? 4 : 5,
+                          vertical: isMobile ? 1 : 2,
                         ),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -2099,6 +2092,7 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                     ),
                   ],
                 ),
+          ),
         ),
       ),
     );
