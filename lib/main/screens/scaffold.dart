@@ -8,6 +8,7 @@ import '../../account/screens/profile.dart';
 import '../../community/screens/community_page.dart';
 import '../../best_eleven/screens/best_eleven_list_page.dart';
 import '../../best_eleven/screens/best_eleven_builder_page.dart';
+import '../../transaction/screens/transaction_main_page.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -23,7 +24,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   late final List<Widget> _pages = [
     const Homepage(),
     BestElevenListPage(key: _bestElevenKey),
-    const Center(child: Text("Halaman Bursa Transfer (Market)")),
+    const TransactionMainPage(),
     const CommunityPage(),
     const ProfileScreen(),
   ];

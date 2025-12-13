@@ -35,7 +35,9 @@ class _SplashScreenState extends State<SplashScreen> {
         if (response != null && response['username'] != null) {
             // Sukses Login & Dapat User Data
             String username = response['username'];
+            bool isClubAdmin = response['is_club_admin'] ?? false;
             context.read<UserProvider>().setUsername(username);
+            context.read<UserProvider>().setIsClubAdmin(isClubAdmin);
             
             Navigator.pushReplacement(
                 context,

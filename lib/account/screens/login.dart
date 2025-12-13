@@ -101,6 +101,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         // SIMPAN USERNAME KE PROVIDER
                         context.read<UserProvider>().setUsername(uname);
                         
+                        // Fetch profile untuk mendapatkan is_club_admin
+                        try {
+                          final profileResponse = await request.get('http://localhost:8000/accounts/api/profile/');
+                          if (profileResponse != null && profileResponse['username'] != null) {
+                            bool isClubAdmin = profileResponse['is_club_admin'] ?? false;
+                            if (context.mounted) {
+                              context.read<UserProvider>().setIsClubAdmin(isClubAdmin);
+                            }
+                          }
+                        } catch (e) {
+                          print('Error fetching profile: $e');
+                        }
+                        
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
