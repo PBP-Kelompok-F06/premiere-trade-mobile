@@ -162,7 +162,7 @@ class _NegotiationInboxPageState extends State<NegotiationInboxPage> with Single
         itemCount: _receivedOffers.length,
         itemBuilder: (context, index) {
           final negotiation = _receivedOffers[index];
-          final priceFormat = NumberFormat.currency(symbol: '€ ', decimalDigits: 0);
+          final priceFormat = NumberFormat.currency(symbol: 'Rp ', decimalDigits: 0);
           final statusColor = _getStatusColor(negotiation.status);
           final statusText = _getStatusText(negotiation.status);
 
@@ -295,7 +295,7 @@ class _NegotiationInboxPageState extends State<NegotiationInboxPage> with Single
         itemCount: _sentOffers.length,
         itemBuilder: (context, index) {
           final negotiation = _sentOffers[index];
-          final priceFormat = NumberFormat.currency(symbol: '€ ', decimalDigits: 0);
+          final priceFormat = NumberFormat.currency(symbol: 'Rp ', decimalDigits: 0);
           final statusColor = _getStatusColor(negotiation.status);
           final statusText = _getStatusText(negotiation.status);
 

@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:pbp_django_auth/pbp_django_auth.dart';
-import 'package:provider/provider.dart';
 import '../../core/constants/colors.dart';
 import '../../core/widgets/bottom_navbar.dart';
 import 'homepage.dart';
 import '../../account/screens/profile.dart';
 import '../../community/screens/community_page.dart';
-import '../../best_eleven/screens/best_eleven_list_page.dart';
 import '../../best_eleven/screens/best_eleven_builder_page.dart';
 import '../../transaction/screens/transaction_main_page.dart';
+import '../../rumor/screens/rumors_page.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -19,13 +17,13 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> {
   int _selectedIndex = 0;
-  final GlobalKey<BestElevenListPageState> _bestElevenKey = GlobalKey();
 
   late final List<Widget> _pages = [
     const Homepage(),
-    BestElevenListPage(key: _bestElevenKey),
+    const BestElevenBuilderPage(hideScaffold: true),
     const TransactionMainPage(),
     const CommunityPage(),
+    const RumorsPage(),
     const ProfileScreen(),
   ];
 
@@ -47,6 +45,8 @@ class _MainScaffoldState extends State<MainScaffold> {
       case 3:
         return "Community";
       case 4:
+        return "Rumors";
+      case 5:
         return "My Profile";
       default:
         return "Premiere Trade";
@@ -103,8 +103,8 @@ class _MainScaffoldState extends State<MainScaffold> {
               title: const Text('Best Eleven'),
               selected: _selectedIndex == 1,
               onTap: () {
-                _onItemTapped(1);
-                Navigator.pop(context);
+                Navigator.pop(context); 
+                _onItemTapped(1); 
               },
             ),
             ListTile(
@@ -126,11 +126,20 @@ class _MainScaffoldState extends State<MainScaffold> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Profile'),
+              leading: const Icon(Icons.record_voice_over),
+              title: const Text('Rumors'),
               selected: _selectedIndex == 4,
               onTap: () {
                 _onItemTapped(4);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Profile'),
+              selected: _selectedIndex == 5,
+              onTap: () {
+                _onItemTapped(5);
                 Navigator.pop(context);
               },
             ), 
@@ -151,22 +160,6 @@ class _MainScaffoldState extends State<MainScaffold> {
   
   Widget? _getFloatingActionButton() {
     switch (_selectedIndex) {
-      case 1: // Best Eleven
-        return FloatingActionButton(
-          onPressed: () async {
-            if (!mounted) return;
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const BestElevenBuilderPage(),
-              ),
-            );
-            if (mounted) {
-              (_bestElevenKey.currentState as BestElevenListPageState?)?.refreshData();
-            }
-          },
-          child: const Icon(Icons.add),
-        );
       case 3: // Community
         // Community FAB functionality - to be implemented in CommunityPage itself
         return null;

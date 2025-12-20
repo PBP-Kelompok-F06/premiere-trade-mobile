@@ -5,10 +5,25 @@ import 'package:intl/intl.dart';
 import '../models/best_eleven_models.dart';
 import '../services/best_eleven_service.dart';
 
+String getProxiedUrl(String? url) {
+  if (url == null || url.isEmpty) return "";
+  // Jika URL sudah lengkap (http/https), gunakan langsung
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return "https://wsrv.nl/?url=$url&output=png";
+  }
+  // Jika URL relatif, tambahkan base URL dari Django
+  return "https://wsrv.nl/?url=http://localhost:8000$url&output=png";
+}
+
 class BestElevenBuilderPage extends StatefulWidget {
   final int? formationId;
+  final bool hideScaffold;
 
-  const BestElevenBuilderPage({super.key, this.formationId});
+  const BestElevenBuilderPage({
+    super.key, 
+    this.formationId,
+    this.hideScaffold = false,
+  });
 
   @override
   State<BestElevenBuilderPage> createState() => _BestElevenBuilderPageState();
@@ -40,6 +55,7 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
   // Map slotId to Player
   final Map<String, BestElevenPlayer> _selectedPlayers = {};
   bool _isLoading = true;
+  bool _isSaving = false;
   String? _statusMessage;
   bool _isStatusError = false;
   
@@ -50,6 +66,9 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
   
   // Filter position state
   String? _currentFilterPositionCode;
+  
+  // Mobile UI state
+  bool _isHistoryExpanded = false;
   
   // Formation layouts mapping
   static const Map<String, List<String>> _formationLayouts = {
@@ -167,7 +186,8 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
           _statusMessage = 'Tidak ada pemain ditemukan.';
           _isStatusError = false;
         } else {
-          _statusMessage = '${players.length} pemain dimuat.';
+          // Tidak menampilkan pesan "X pemain dimuat"
+          _statusMessage = null;
           _isStatusError = false;
         }
       });
@@ -210,7 +230,6 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
 
   Future<void> _loadFormation(int formationId) async {
     try {
-      _showStatus('Memuat formasi...', false);
       
       final request = context.read<CookieRequest>();
       final service = BestElevenService(request);
@@ -240,27 +259,35 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
         _filterPlayers();
         _checkFormCompletion();
         
-        _showStatus('Formasi "${formation.name}" dimuat.', false);
       }
     } catch (e) {
-      _showStatus('Error memuat formasi: $e', true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error memuat formasi: $e')),
+        );
+      }
       print('Error loading formation: $e');
     }
   }
 
   Future<void> _saveFormation() async {
     if (_nameController.text.trim().isEmpty) {
-      _showStatus('Nama formasi wajib diisi!', true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nama formasi wajib diisi!')),
+      );
       return;
     }
     
     if (_selectedPlayers.length != 11) {
-      _showStatus('Anda harus memiliki 11 pemain.', true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Anda harus memiliki 11 pemain.')),
+      );
       return;
     }
 
     setState(() {
-      _statusMessage = 'Menyimpan formasi...';
+      _isSaving = true;
+      _statusMessage = null;
       _isStatusError = false;
     });
 
@@ -275,6 +302,12 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
           .map((e) => {'slotId': e.key, 'playerId': e.value.id.toString()})
           .toList();
       
+      print('Saving formation with:');
+      print('  Name: ${_nameController.text.trim()}');
+      print('  Layout: $_selectedLayout');
+      print('  Formation ID: $_currentFormationId');
+      print('  Player IDs: $playerIds');
+      
       final response = await service.saveFormation(
         name: _nameController.text.trim(),
         layout: _selectedLayout,
@@ -282,29 +315,103 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
         playerIds: playerIds,
       );
 
+      print('Save response: $response');
+
+      if (!mounted) return;
+
       if (response['error'] != null) {
-        _showStatus('Error: ${response['error']}', true);
+        setState(() {
+          _isSaving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${response['error']}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
         return;
       }
 
+      // Handle success response
+      BestElevenFormation? savedFormation;
       if (response['formation'] != null) {
-        final formation = BestElevenFormation.fromJson(response['formation']);
-        setState(() {
-          _currentFormationId = formation.id;
-          if (!_history.any((h) => h.id == formation.id)) {
-            _history.insert(0, formation);
-          } else {
-            int index = _history.indexWhere((h) => h.id == formation.id);
-            if (index != -1) {
-              _history[index] = formation;
-            }
-          }
-        });
+        try {
+          savedFormation = BestElevenFormation.fromJson(response['formation']);
+        } catch (e) {
+          print('Error parsing formation from response: $e');
+          print('Response formation data: ${response['formation']}');
+        }
       }
 
-      _showStatus(response['message'] ?? 'Formasi disimpan!', false);
-    } catch (e) {
-      _showStatus('Error: $e', true);
+      // Refresh history
+      try {
+        final builderData = await service.fetchBuilderData();
+        if (builderData['history'] is List) {
+          final updatedHistory = (builderData['history'] as List)
+              .map((h) => BestElevenFormation.fromJson(h))
+              .toList();
+          
+          setState(() {
+            _history = updatedHistory;
+            if (savedFormation != null) {
+              _currentFormationId = savedFormation.id;
+              // Update saved formation in history if exists
+              final index = _history.indexWhere((h) => h.id == savedFormation!.id);
+              if (index != -1) {
+                _history[index] = savedFormation;
+              } else {
+                _history.insert(0, savedFormation);
+              }
+            }
+            _isSaving = false;
+          });
+        }
+      } catch (e) {
+        print('Error refreshing history: $e');
+        // Still update state even if refresh fails
+        if (savedFormation != null) {
+          setState(() {
+            _currentFormationId = savedFormation!.id;
+            final index = _history.indexWhere((h) => h.id == savedFormation!.id);
+            if (index != -1) {
+              _history[index] = savedFormation;
+            } else {
+              _history.insert(0, savedFormation);
+            }
+            _isSaving = false;
+          });
+        } else {
+          setState(() {
+            _isSaving = false;
+          });
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message'] ?? 'Formasi berhasil disimpan!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
+      print('Error in _saveFormation: $e');
+      print('Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error menyimpan formasi: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -341,13 +448,18 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
               _clearFormation();
             }
           });
-          _showStatus('Formasi "$name" dihapus.', false);
         } else {
-          _showStatus('Gagal menghapus formasi.', true);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Gagal menghapus formasi.')),
+            );
+          }
         }
       } catch (e) {
         if (!mounted) return;
-        _showStatus('Error: $e', true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
       }
     }
   }
@@ -362,7 +474,6 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
       _currentFilterPositionCode = null;
     });
     _filterPlayers();
-    _showStatus('Formasi dikosongkan.', false);
   }
   
   void _handleClearFilter() {
@@ -396,7 +507,11 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
         });
       }
     } catch (e) {
-      _showStatus('Error memuat detail: $e', true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error memuat detail: $e')),
+        );
+      }
       setState(() {
         _showDetailModal = false;
       });
@@ -420,7 +535,6 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
         _currentFilterPositionCode = null;
       });
       _filterPlayers();
-      _showStatus('Pemain dihapus dari slot $slotId.', false);
     } else {
       // Select slot - toggle selection
       setState(() {
@@ -428,13 +542,10 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
           // Deselect jika slot yang sama diklik lagi
           _selectedSlotId = null;
           _currentFilterPositionCode = null;
-          _showStatus('Pemilihan slot $slotId dibatalkan.', false);
         } else {
           // Select slot baru
           _selectedSlotId = slotId;
           _currentFilterPositionCode = _slotPositionMap[slotId];
-          final requiredRole = _slotPositionMap[slotId] ?? 'N/A';
-          _showStatus('Memilih pemain untuk $slotId ($requiredRole)', false);
         }
       });
       // Filter players berdasarkan posisi yang dibutuhkan
@@ -451,7 +562,9 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
     }
 
     if (_selectedPlayers.length >= 11) {
-      _showStatus('Skuad penuh (11 pemain).', true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Skuad penuh (11 pemain).')),
+      );
       return;
     }
 
@@ -466,7 +579,9 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
     }
 
     if (_selectedPlayers.values.any((p) => p.id.toString() == player.id.toString())) {
-      _showStatus('${player.name} sudah ada di skuad.', true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${player.name} sudah ada di skuad.')),
+      );
       return;
     }
 
@@ -479,7 +594,6 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
     
     _filterPlayers();
     _checkFormCompletion();
-    _showStatus('${player.name} ditambahkan ke slot $slotId.', false);
   }
 
   bool _isPositionCompatible(String playerPosition, String requiredRole) {
@@ -570,33 +684,18 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
     _filterPlayers();
     _checkFormCompletion();
     
-    // Show status message
+    // Show status message - tidak perlu menampilkan pesan
+    // Unplaced players akan tetap di skuad tetapi tidak ditempatkan
     if (unplacedPlayers.isNotEmpty) {
-      final names = unplacedPlayers.map((p) => p.name).join(', ');
-      _showStatus('Pemain dihapus (posisi tidak tersedia): $names', true);
+      // Silent - tidak perlu menampilkan pesan
     } else if (_selectedPlayers.isNotEmpty && _selectedPlayers.length < 11) {
-      _showStatus('Formasi berubah. Harap isi ${11 - _selectedPlayers.length} slot yang kosong.', false);
+      // Silent - tidak perlu menampilkan pesan
     }
   }
 
   void _checkFormCompletion() {
     // Update UI based on completion status
     setState(() {});
-  }
-
-  void _showStatus(String message, bool isError) {
-    setState(() {
-      _statusMessage = message;
-      _isStatusError = isError;
-    });
-    
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted && _statusMessage == message) {
-        setState(() {
-          _statusMessage = null;
-        });
-      }
-    });
   }
 
   String _formatCurrency(double? value) {
@@ -617,11 +716,14 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
             color: Colors.black.withValues(alpha: 0.6),
           ),
         ),
-        // Modal content
+        // Modal content - responsive
         Center(
           child: Container(
-            width: MediaQuery.of(context).size.width * 0.9,
-            constraints: const BoxConstraints(maxWidth: 500),
+            width: MediaQuery.of(context).size.width * 0.95,
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width < 600 ? double.infinity : 500,
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
@@ -629,9 +731,9 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Header
+                // Header - responsive
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 12 : 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -641,8 +743,8 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                           children: [
                             Text(
                               _detailFormation?.name ?? 'Memuat...',
-                              style: const TextStyle(
-                                fontSize: 24,
+                              style: TextStyle(
+                                fontSize: MediaQuery.of(context).size.width < 600 ? 18 : 24,
                                 fontWeight: FontWeight.bold,
                                 color: _primaryPurple,
                               ),
@@ -650,8 +752,8 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                             if (_detailFormation != null)
                               Text(
                                 'Formasi: ${_detailFormation!.layout}',
-                                style: const TextStyle(
-                                  fontSize: 16,
+                                style: TextStyle(
+                                  fontSize: MediaQuery.of(context).size.width < 600 ? 14 : 16,
                                   color: Colors.grey,
                                 ),
                               ),
@@ -659,8 +761,16 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close),
+                        icon: Icon(
+                          Icons.close,
+                          size: MediaQuery.of(context).size.width < 600 ? 20 : 24,
+                        ),
                         onPressed: _hideDetailModal,
+                        padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 4 : 8),
+                        constraints: BoxConstraints(
+                          minWidth: MediaQuery.of(context).size.width < 600 ? 36 : 48,
+                          minHeight: MediaQuery.of(context).size.width < 600 ? 36 : 48,
+                        ),
                       ),
                     ],
                   ),
@@ -689,12 +799,13 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                           : ListView.builder(
                               shrinkWrap: true,
                               itemCount: _detailPlayers.length,
-                              padding: const EdgeInsets.all(16),
+                              padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 12 : 16),
                               itemBuilder: (context, index) {
                                 final player = _detailPlayers[index];
+                                final isMobileModal = MediaQuery.of(context).size.width < 600;
                                 return Container(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  padding: const EdgeInsets.all(12),
+                                  margin: EdgeInsets.only(bottom: isMobileModal ? 8 : 12),
+                                  padding: EdgeInsets.all(isMobileModal ? 10 : 12),
                                   decoration: BoxDecoration(
                                     color: Colors.grey.shade50,
                                     borderRadius: BorderRadius.circular(8),
@@ -703,35 +814,43 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                                   child: Row(
                                     children: [
                                       CircleAvatar(
-                                        radius: 24,
-                                        backgroundImage: player.profileImageUrl != null
-                                            ? NetworkImage(player.profileImageUrl!)
+                                        radius: isMobileModal ? 20 : 24,
+                                        backgroundColor: _primaryPurple,
+                                        backgroundImage: player.profileImageUrl != null && player.profileImageUrl!.isNotEmpty
+                                            ? NetworkImage(getProxiedUrl(player.profileImageUrl))
                                             : null,
-                                        child: player.profileImageUrl == null
+                                        onBackgroundImageError: (exception, stackTrace) {
+                                          // Error loading image, will show child instead
+                                        },
+                                        child: player.profileImageUrl == null || player.profileImageUrl!.isEmpty
                                             ? Text(
                                                 player.name.isNotEmpty 
                                                     ? player.name[0].toUpperCase() 
                                                     : '?',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: isMobileModal ? 14 : 16,
+                                                ),
                                               )
                                             : null,
                                       ),
-                                      const SizedBox(width: 12),
+                                      SizedBox(width: isMobileModal ? 10 : 12),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               player.name,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontWeight: FontWeight.bold,
-                                                fontSize: 16,
+                                                fontSize: isMobileModal ? 14 : 16,
                                               ),
                                             ),
                                             Text(
                                               player.position.isNotEmpty ? player.position : 'N/A',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 color: Colors.grey,
-                                                fontSize: 14,
+                                                fontSize: isMobileModal ? 12 : 14,
                                               ),
                                             ),
                                           ],
@@ -743,21 +862,28 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                               },
                             ),
                 ),
-                // Footer
+                // Footer - responsive
                 Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      ElevatedButton(
-                        onPressed: _hideDetailModal,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _primaryPurple,
-                          foregroundColor: Colors.white,
+                  padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 12 : 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _hideDetailModal,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryPurple,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          vertical: MediaQuery.of(context).size.width < 600 ? 14 : 12,
                         ),
-                        child: const Text('Kembali'),
+                        minimumSize: Size(0, MediaQuery.of(context).size.width < 600 ? 48 : 44),
                       ),
-                    ],
+                      child: Text(
+                        'Kembali',
+                        style: TextStyle(
+                          fontSize: MediaQuery.of(context).size.width < 600 ? 14 : 16,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -768,30 +894,22 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _cardBg,
-      appBar: AppBar(
-        title: const Text(
-          'Best XI Team Builder',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-        ),
-        backgroundColor: _primaryPurple,
-        foregroundColor: Colors.white,
-      ),
-      body: Stack(
+  Widget _buildBody() {
+    return Stack(
         children: [
           _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      // Status message - sesuai template Django
-                      if (_statusMessage != null)
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 16),
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isMobile = MediaQuery.of(context).size.width < 768;
+                    return SingleChildScrollView(
+                      padding: EdgeInsets.all(isMobile ? 16 : 16),
+                      child: Column(
+                        children: [
+                          // Status message - sesuai template Django
+                          if (_statusMessage != null)
+                            Container(
+                              margin: EdgeInsets.only(bottom: isMobile ? 12 : 16),
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                           decoration: BoxDecoration(
                             color: _isStatusError 
@@ -817,78 +935,300 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                             textAlign: TextAlign.center,
                           ),
                         ),
-                      // Placeholder untuk spacing jika tidak ada status
-                      if (_statusMessage == null)
-                        const SizedBox(height: 40),
-                      
-                      // Main grid layout
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          if (constraints.maxWidth > 1200) {
-                            // Desktop layout: 3 columns
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(child: _buildHistoryCard()),
-                                const SizedBox(width: 16),
-                                Expanded(flex: 2, child: _buildPitchCard()),
-                                const SizedBox(width: 16),
-                                Expanded(child: _buildPlayerListCard()),
-                              ],
-                            );
-                          } else {
-                            // Mobile layout: stacked
-                            return Column(
-                              children: [
-                                _buildHistoryCard(),
-                                const SizedBox(height: 16),
-                                _buildPitchCard(),
-                                const SizedBox(height: 16),
-                                _buildPlayerListCard(),
-                              ],
-                            );
-                          }
-                        },
+                          // Placeholder untuk spacing jika tidak ada status
+                          if (_statusMessage == null)
+                            SizedBox(height: isMobile ? 8 : 40),
+                          
+                          // Main grid layout - responsive
+                          LayoutBuilder(
+                            builder: (context, innerConstraints) {
+                              final isMobileInner = MediaQuery.of(context).size.width < 768;
+                          
+                              if (innerConstraints.maxWidth > 1200) {
+                                // Desktop layout: 3 columns
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(child: _buildHistoryCard(isMobile: false)),
+                                    const SizedBox(width: 16),
+                                    Expanded(flex: 2, child: _buildPitchCard(isMobile: false)),
+                                    const SizedBox(width: 16),
+                                    Expanded(child: _buildPlayerListCard(isMobile: false)),
+                                  ],
+                                );
+                              } else {
+                                // Mobile/Tablet layout: optimized order for mobile
+                                if (isMobileInner) {
+                                  // Mobile: Pitch first (main focus), then Player List, then collapsible History
+                                  return Column(
+                                    children: [
+                                      _buildPitchCard(isMobile: true),
+                                      const SizedBox(height: 12),
+                                      _buildPlayerListCard(isMobile: true),
+                                      const SizedBox(height: 12),
+                                      _buildHistoryCardMobile(),
+                                    ],
+                                  );
+                                } else {
+                                  // Tablet: Pitch on top, History and Player List side by side
+                                  return Column(
+                                    children: [
+                                      _buildPitchCard(isMobile: false),
+                                      const SizedBox(height: 16),
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(child: _buildHistoryCard(isMobile: false)),
+                                          const SizedBox(width: 16),
+                                          Expanded(child: _buildPlayerListCard(isMobile: false)),
+                                        ],
+                                      ),
+                                    ],
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
           // Detail Modal overlay
           if (_showDetailModal) _buildDetailModal(),
+        ],
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final body = _buildBody();
+    
+    // Jika hideScaffold true, return body saja (untuk diintegrasikan ke scaffold utama)
+    if (widget.hideScaffold) {
+      return Container(
+        color: _cardBg,
+        child: body,
+      );
+    }
+    
+    // Jika tidak, return Scaffold lengkap (untuk navigasi standalone)
+    return Scaffold(
+      backgroundColor: _cardBg,
+      appBar: AppBar(
+        title: Text(
+          'Best XI Team Builder',
+          style: TextStyle(
+            fontSize: MediaQuery.of(context).size.width < 600 ? 18 : 24,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        backgroundColor: _primaryPurple,
+        foregroundColor: Colors.white,
+        elevation: 2,
+      ),
+      body: body,
+    );
+  }
+
+  Widget _buildHistoryCardMobile() {
+    return Card(
+      color: _cardBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: _cardBorder, width: 2),
+      ),
+      elevation: 8,
+      child: ExpansionTile(
+        initiallyExpanded: _isHistoryExpanded,
+        onExpansionChanged: (expanded) {
+          setState(() {
+            _isHistoryExpanded = expanded;
+          });
+        },
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        childrenPadding: const EdgeInsets.only(bottom: 12),
+        title: Row(
+          children: [
+            const Text(
+              '💾 Formasi Tersimpan',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: _textLight,
+              ),
+            ),
+            if (_history.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _primaryPurple,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${_history.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        children: [
+          const Divider(color: _cardBorder, thickness: 2),
+          SizedBox(
+            height: 200,
+            child: _history.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Center(
+                      child: Text(
+                        'Belum ada formasi tersimpan.',
+                        style: TextStyle(
+                          color: _textMuted,
+                          fontStyle: FontStyle.italic,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: _history.length,
+                    itemBuilder: (context, index) {
+                      final formation = _history[index];
+                      final isSelected = _currentFormationId == formation.id;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected 
+                              ? const Color(0xFFE3DCEF)
+                              : _cardBg,
+                          border: Border.all(
+                            color: isSelected ? _accentPink : _cardBorder,
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          title: Text(
+                            formation.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _textLight,
+                              fontSize: 14,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Formasi: ${formation.layout}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.visibility,
+                                  color: _primaryPurple,
+                                  size: 20,
+                                ),
+                                onPressed: () => _showFormationDetails(formation.id),
+                                tooltip: 'Lihat Detail',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(
+                                  minWidth: 36,
+                                  minHeight: 36,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                onPressed: () => _deleteFormation(formation.id, formation.name),
+                                tooltip: 'Hapus',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(
+                                  minWidth: 36,
+                                  minHeight: 36,
+                                ),
+                              ),
+                            ],
+                          ),
+                          onTap: () => _loadFormation(formation.id),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          const Divider(color: _cardBorder),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _clearFormation,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryPurple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  minimumSize: const Size(0, 48),
+                ),
+                child: const Text(
+                  '+ FORMASI BARU',
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildHistoryCard() {
+  Widget _buildHistoryCard({required bool isMobile}) {
     return Card(
       color: _cardBg,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
         side: const BorderSide(color: _cardBorder, width: 2),
       ),
       elevation: 8,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isMobile ? 12 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               '💾 Formasi Tersimpan',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: isMobile ? 16 : 18,
                 fontWeight: FontWeight.bold,
                 color: _textLight,
               ),
             ),
             const Divider(color: _cardBorder, thickness: 2),
             SizedBox(
-              height: 300,
+              height: isMobile ? 200 : 300,
               child: _history.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'Belum ada formasi tersimpan.',
-                        style: TextStyle(color: _textMuted, fontStyle: FontStyle.italic),
+                        style: TextStyle(
+                          color: _textMuted,
+                          fontStyle: FontStyle.italic,
+                          fontSize: isMobile ? 12 : 14,
+                        ),
                       ),
                     )
                   : ListView.builder(
@@ -897,7 +1237,7 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                         final formation = _history[index];
                         final isSelected = _currentFormationId == formation.id;
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
+                          margin: EdgeInsets.only(bottom: isMobile ? 8 : 12),
                           decoration: BoxDecoration(
                             color: isSelected 
                                 ? const Color(0xFFE3DCEF)
@@ -906,29 +1246,55 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                               color: isSelected ? _accentPink : _cardBorder,
                               width: 2,
                             ),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
                           ),
                           child: ListTile(
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: isMobile ? 8 : 16,
+                              vertical: isMobile ? 4 : 8,
+                            ),
                             title: Text(
                               formation.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: _textLight,
+                                fontSize: isMobile ? 14 : 16,
                               ),
                             ),
-                            subtitle: Text('Formasi: ${formation.layout}'),
+                            subtitle: Text(
+                              'Formasi: ${formation.layout}',
+                              style: TextStyle(fontSize: isMobile ? 12 : 14),
+                            ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.visibility, color: _primaryPurple),
+                                  icon: Icon(
+                                    Icons.visibility,
+                                    color: _primaryPurple,
+                                    size: isMobile ? 20 : 24,
+                                  ),
                                   onPressed: () => _showFormationDetails(formation.id),
                                   tooltip: 'Lihat Detail',
+                                  padding: EdgeInsets.all(isMobile ? 4 : 8),
+                                  constraints: BoxConstraints(
+                                    minWidth: isMobile ? 36 : 48,
+                                    minHeight: isMobile ? 36 : 48,
+                                  ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  icon: Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                    size: isMobile ? 20 : 24,
+                                  ),
                                   onPressed: () => _deleteFormation(formation.id, formation.name),
                                   tooltip: 'Hapus',
+                                  padding: EdgeInsets.all(isMobile ? 4 : 8),
+                                  constraints: BoxConstraints(
+                                    minWidth: isMobile ? 36 : 48,
+                                    minHeight: isMobile ? 36 : 48,
+                                  ),
                                 ),
                               ],
                             ),
@@ -946,9 +1312,15 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primaryPurple,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: EdgeInsets.symmetric(
+                    vertical: isMobile ? 14 : 12,
+                  ),
+                  minimumSize: Size(0, isMobile ? 48 : 44),
                 ),
-                child: const Text('+ FORMASI BARU'),
+                child: Text(
+                  '+ FORMASI BARU',
+                  style: TextStyle(fontSize: isMobile ? 13 : 14),
+                ),
               ),
             ),
           ],
@@ -957,150 +1329,430 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
     );
   }
 
-  Widget _buildPitchCard() {
+  Widget _buildPositionSelector({required bool isMobile}) {
+    final slots = _formationLayouts[_selectedLayout] ?? [];
+    
     return Card(
       color: _cardBg,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
+        side: BorderSide(
+          color: _selectedSlotId != null ? _accentPink : _cardBorder,
+          width: _selectedSlotId != null ? 3 : 2,
+        ),
+      ),
+      elevation: 4,
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 14 : 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.touch_app,
+                  size: isMobile ? 20 : 20,
+                  color: _textLight,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Pilih Posisi',
+                  style: TextStyle(
+                    fontSize: isMobile ? 16 : 16,
+                    fontWeight: FontWeight.bold,
+                    color: _textLight,
+                  ),
+                ),
+                if (_selectedSlotId != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _accentPink,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _selectedSlotId!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            SizedBox(height: isMobile ? 16 : 12),
+            Wrap(
+              spacing: isMobile ? 8 : 8,
+              runSpacing: isMobile ? 10 : 8,
+              children: slots.map((slotId) {
+                final isSelected = _selectedSlotId == slotId;
+                final hasPlayer = _selectedPlayers.containsKey(slotId);
+                
+                return InkWell(
+                  onTap: () => _handleSlotClick(slotId),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 12 : 12,
+                      vertical: isMobile ? 10 : 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? _accentPink
+                          : hasPlayer
+                              ? _primaryPurple.withValues(alpha: 0.2)
+                              : _cardBg,
+                      border: Border.all(
+                        color: isSelected
+                            ? _accentPink
+                            : hasPlayer
+                                ? _primaryPurple
+                                : _cardBorder,
+                        width: isSelected ? 3 : 2,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (hasPlayer)
+                          Icon(
+                            Icons.check_circle,
+                            size: isMobile ? 16 : 18,
+                            color: isSelected ? Colors.white : _primaryPurple,
+                          ),
+                        if (hasPlayer) SizedBox(width: isMobile ? 4 : 6),
+                        Text(
+                          slotId,
+                          style: TextStyle(
+                            fontSize: isMobile ? 12 : 13,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected || hasPlayer
+                                ? Colors.white
+                                : _textLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            if (_selectedSlotId != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _accentPink.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _accentPink,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: isMobile ? 16 : 18,
+                      color: _accentPink,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Pilih pemain dari daftar di bawah untuk posisi ${_selectedSlotId} (${_slotPositionMap[_selectedSlotId] ?? "N/A"})',
+                        style: TextStyle(
+                          fontSize: isMobile ? 11 : 12,
+                          color: _textLight,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPitchCard({required bool isMobile}) {
+    return Card(
+      color: _cardBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
         side: const BorderSide(color: _cardBorder, width: 2),
       ),
       elevation: 8,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isMobile ? 16 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Name and layout inputs
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      hintText: '✏️ Nama Formasi (cth: Tim Impian)',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: _cardBorder, width: 2),
-                      ),
-                      filled: true,
-                      fillColor: _cardBg,
-                    ),
-                    onChanged: (_) => _checkFormCompletion(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedLayout,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: _cardBorder, width: 2),
-                      ),
-                      filled: true,
-                      fillColor: _cardBg,
-                    ),
-                    items: _layouts.map((layout) {
-                      return DropdownMenuItem(
-                        value: layout,
-                        child: Text(layout),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _selectedLayout = value;
-                          _selectedSlotId = null;
-                        });
-                        // Reassign players ke layout baru (sesuai template Django)
-                        _reassignPlayersToPitch();
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            
-            // Pitch - menggunakan Stack dengan Positioned sesuai grid-area CSS Django (6 kolom x 5 baris)
-            Container(
-              height: 550,
-              width: double.infinity,
-              constraints: const BoxConstraints(
-                minHeight: 450,
-                maxHeight: 650,
-              ),
-              decoration: BoxDecoration(
-                // Background hijau lapangan (bisa diganti dengan image jika ada)
-                color: Colors.green.shade700,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 20,
-                    spreadRadius: 5,
-                    offset: const Offset(0, 0),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final pitchWidth = constraints.maxWidth;
-                    final pitchHeight = constraints.maxHeight;
-                    return Stack(
-                      children: [
-                        // Background grid lines untuk visualisasi (6 kolom x 5 baris)
-                        CustomPaint(
-                          painter: PitchGridPainter(),
-                          child: Container(),
+            // Name and layout inputs - stacked on mobile
+            isMobile
+                ? Column(
+                    children: [
+                      TextField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          hintText: '✏️ Nama Formasi',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: _cardBorder, width: 2),
+                          ),
+                          filled: true,
+                          fillColor: _cardBg,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                         ),
-                        // Player slots dengan ukuran container yang tepat
-                        ..._buildPitchSlots(pitchWidth, pitchHeight),
-                      ],
-                    );
-                  },
-                ),
-              ),
+                        style: const TextStyle(fontSize: 16),
+                        onChanged: (_) => _checkFormCompletion(),
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: _selectedLayout,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: _cardBorder, width: 2),
+                          ),
+                          filled: true,
+                          fillColor: _cardBg,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                        ),
+                        style: const TextStyle(fontSize: 16),
+                        items: _layouts.map((layout) {
+                          return DropdownMenuItem(
+                            value: layout,
+                            child: Text(layout),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedLayout = value;
+                              _selectedSlotId = null;
+                            });
+                            _reassignPlayersToPitch();
+                          }
+                        },
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _nameController,
+                          decoration: InputDecoration(
+                            hintText: '✏️ Nama Formasi (cth: Tim Impian)',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: _cardBorder, width: 2),
+                            ),
+                            filled: true,
+                            fillColor: _cardBg,
+                          ),
+                          onChanged: (_) => _checkFormCompletion(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedLayout,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: _cardBorder, width: 2),
+                            ),
+                            filled: true,
+                            fillColor: _cardBg,
+                          ),
+                          items: _layouts.map((layout) {
+                            return DropdownMenuItem(
+                              value: layout,
+                              child: Text(layout),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _selectedLayout = value;
+                                _selectedSlotId = null;
+                              });
+                              _reassignPlayersToPitch();
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+            SizedBox(height: isMobile ? 20 : 16),
+            
+            // Pitch - responsive height
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final screenHeight = MediaQuery.of(context).size.height;
+                final pitchHeight = isMobile 
+                    ? (screenHeight * 0.38).clamp(300.0, 420.0)
+                    : 550.0;
+                
+                return Container(
+                  height: pitchHeight,
+                  width: double.infinity,
+                  constraints: BoxConstraints(
+                    minHeight: isMobile ? 300 : 450,
+                    maxHeight: isMobile ? 420 : 650,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade700,
+                    borderRadius: BorderRadius.circular(isMobile ? 12 : 12),
+                    border: Border.all(color: Colors.white, width: isMobile ? 1.5 : 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: isMobile ? 10 : 20,
+                        spreadRadius: isMobile ? 2 : 5,
+                        offset: const Offset(0, 0),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final pitchWidth = constraints.maxWidth;
+                        final pitchHeight = constraints.maxHeight;
+                        return Stack(
+                          children: [
+                            CustomPaint(
+                              painter: PitchGridPainter(),
+                              child: Container(),
+                            ),
+                            ..._buildPitchSlots(pitchWidth, pitchHeight, isMobile: isMobile),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
             ),
             
-            const SizedBox(height: 16),
+            SizedBox(height: isMobile ? 20 : 16),
             
-            // Action buttons
-            Row(
-              children: [
-                ElevatedButton(
-                  onPressed: _clearFormation,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryPurple,
-                    foregroundColor: Colors.white,
+            // Quick Position Selector - untuk memudahkan pemilihan posisi
+            _buildPositionSelector(isMobile: isMobile),
+            
+            SizedBox(height: isMobile ? 20 : 16),
+            
+            // Action buttons - stacked on mobile
+            isMobile
+                ? Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _clearFormation,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryPurple,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            minimumSize: const Size(0, 52),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Kosongkan Pemain',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: (_selectedPlayers.length == 11 && _nameController.text.trim().isNotEmpty && !_isSaving)
+                              ? _saveFormation
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryPurple,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: Colors.grey,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            minimumSize: const Size(0, 52),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: _isSaving
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Text(
+                                  _selectedPlayers.length == 11 && _nameController.text.trim().isNotEmpty
+                                      ? (_currentFormationId != null ? '💾 Perbarui' : '💾 Simpan')
+                                      : _selectedPlayers.length < 11
+                                          ? 'Pilih ${11 - _selectedPlayers.length} lagi'
+                                          : '✏️ Tambah Nama',
+                                  style: const TextStyle(fontSize: 14),
+                                  textAlign: TextAlign.center,
+                                ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: _clearFormation,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryPurple,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Kosongkan Pemain'),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: (_selectedPlayers.length == 11 && _nameController.text.trim().isNotEmpty && !_isSaving)
+                              ? _saveFormation
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryPurple,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: Colors.grey,
+                          ),
+                          child: _isSaving
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Text(
+                                  _selectedPlayers.length == 11 && _nameController.text.trim().isNotEmpty
+                                      ? (_currentFormationId != null ? '💾 Perbarui' : '💾 Simpan Formasi')
+                                      : _selectedPlayers.length < 11
+                                          ? 'Pilih ${11 - _selectedPlayers.length} lagi'
+                                          : '✏️ Tambah Nama',
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: const Text('Kosongkan Pemain'),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _selectedPlayers.length == 11 && _nameController.text.trim().isNotEmpty
-                        ? _saveFormation
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryPurple,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey,
-                    ),
-                    child: Text(
-                      _selectedPlayers.length == 11 && _nameController.text.trim().isNotEmpty
-                          ? (_currentFormationId != null ? '💾 Perbarui' : '💾 Simpan Formasi')
-                          : _selectedPlayers.length < 11
-                              ? 'Pilih ${11 - _selectedPlayers.length} lagi'
-                              : '✏️ Tambah Nama',
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -1108,7 +1760,7 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
   }
 
   // Build pitch slots sesuai grid-area CSS Django (6 kolom x 5 baris)
-  List<Widget> _buildPitchSlots(double containerWidth, double containerHeight) {
+  List<Widget> _buildPitchSlots(double containerWidth, double containerHeight, {required bool isMobile}) {
     final slots = _formationLayouts[_selectedLayout] ?? [];
     final List<Widget> widgets = [];
     
@@ -1119,7 +1771,19 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
     final double colWidth = containerWidth / 6; // Pixels per kolom
     final double rowHeight = containerHeight / 5; // Pixels per baris
     
-    for (String slotId in slots) {
+    // Sort slots: render GK and bottom slots last (so they're on top in stack)
+    final sortedSlots = List<String>.from(slots);
+    sortedSlots.sort((a, b) {
+      // Get row position for sorting
+      final posA = _getSlotRowPosition(a);
+      final posB = _getSlotRowPosition(b);
+      // Lower row number (higher on screen) first, but GK last
+      if (a == 'GK') return 1; // GK always last
+      if (b == 'GK') return -1;
+      return posA.compareTo(posB);
+    });
+    
+    for (String slotId in sortedSlots) {
       final position = _getSlotPosition(slotId, colWidth, rowHeight);
       if (position != null) {
         widgets.add(
@@ -1128,13 +1792,41 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
             top: position['top']!,
             width: position['width']!,
             height: position['height']!,
-            child: _buildPitchSlot(slotId, position['width']!, position['height']!),
+            child: ClipRect(
+              child: _buildPitchSlot(slotId, position['width']!, position['height']!, isMobile: isMobile),
+            ),
           ),
         );
       }
     }
     
     return widgets;
+  }
+  
+  // Helper untuk mendapatkan row position untuk sorting
+  int _getSlotRowPosition(String slotId) {
+    // Common positions
+    if (slotId == 'GK') return 6; // Bottom (rendered last)
+    if (slotId == 'LB' || slotId == 'LCB' || slotId == 'RCB' || slotId == 'RB') return 4;
+    
+    // Layout-specific
+    if (_selectedLayout == '4-3-3') {
+      if (slotId == 'LCM' || slotId == 'CM' || slotId == 'RCM') return 3;
+      if (slotId == 'LW' || slotId == 'ST' || slotId == 'RW') return 2;
+    } else if (_selectedLayout == '4-4-2') {
+      if (slotId == 'LM' || slotId == 'LCM' || slotId == 'RCM' || slotId == 'RM') return 3;
+      if (slotId == 'LST' || slotId == 'RST') return 2;
+    } else if (_selectedLayout == '3-5-2') {
+      if (slotId == 'CB') return 4;
+      if (slotId == 'LWB' || slotId == 'LCM' || slotId == 'CAM' || slotId == 'RCM' || slotId == 'RWB') return 3;
+      if (slotId == 'LST' || slotId == 'RST') return 2;
+    } else if (_selectedLayout == '4-2-3-1') {
+      if (slotId == 'LDM' || slotId == 'RDM') return 3;
+      if (slotId == 'LAM' || slotId == 'CAM' || slotId == 'RAM') return 2;
+      if (slotId == 'ST') return 1;
+    }
+    
+    return 5; // Default (will be sorted last with GK)
   }
   
   // Get position untuk slot berdasarkan grid-area CSS Django
@@ -1211,46 +1903,45 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
     };
   }
 
-  Widget _buildPitchSlot(String slotId, double slotWidth, double slotHeight) {
+  Widget _buildPitchSlot(String slotId, double slotWidth, double slotHeight, {required bool isMobile}) {
     final player = _selectedPlayers[slotId];
     final isSelected = _selectedSlotId == slotId;
     
     // Hitung ukuran avatar dan text secara proporsional berdasarkan ukuran slot
-    // Sesuai template Django: avatar lebih besar (60-80px) dan proporsional
+    // Untuk mobile, gunakan ukuran yang lebih kecil tapi tetap mudah di-tap
     final double minDimension = slotWidth < slotHeight ? slotWidth : slotHeight;
-    final double avatarSize = minDimension * 0.7; // Lebih besar dari sebelumnya
-    final double fontSize = avatarSize * 0.4; // Font untuk inisial
-    final double labelFontSize = avatarSize * 0.2; // Font untuk nama
+    final double avatarRatio = isMobile ? 0.65 : 0.7;
+    final double avatarSize = (minDimension * avatarRatio).clamp(isMobile ? 40.0 : 50.0, isMobile ? 60.0 : 80.0);
+    final double fontSize = avatarSize * 0.4;
+    final double labelRatio = isMobile ? 0.18 : 0.2;
+    final double labelFontSize = (avatarSize * labelRatio).clamp(isMobile ? 8.0 : 10.0, isMobile ? 12.0 : 14.0);
     
-    return GestureDetector(
-      onTap: () => _handleSlotClick(slotId),
-      child: Container(
-        width: double.infinity,
-        height: double.infinity,
-        padding: const EdgeInsets.all(2),
-        decoration: isSelected
-            ? BoxDecoration(
-                border: Border.all(
-                  color: _accentPink,
-                  width: 3,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              )
-            : null,
-        child: Center(
+    // Nonaktifkan tap pada lapangan - user hanya bisa pilih melalui "Pilih Posisi"
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      padding: EdgeInsets.zero,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Transform.translate(
+          offset: Offset(0, isMobile ? 0 : 0),
+          child: Padding(
+            padding: EdgeInsets.only(top: 0),
           child: player != null
-              ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                     Container(
-                      width: avatarSize.clamp(50.0, 80.0),
-                      height: avatarSize.clamp(50.0, 80.0),
+                      width: avatarSize,
+                      height: avatarSize,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: _primaryPurple,
-                          width: 4,
+                          color: isSelected
+                              ? _accentPink
+                              : _primaryPurple,
+                          width: isSelected ? 5 : 4,
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -1263,8 +1954,23 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                       child: ClipOval(
                         child: player.profileImageUrl != null && player.profileImageUrl!.isNotEmpty
                             ? Image.network(
-                                player.profileImageUrl!,
+                                getProxiedUrl(player.profileImageUrl),
                                 fit: BoxFit.cover,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Container(
+                                    color: _primaryPurple,
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        value: loadingProgress.expectedTotalBytes != null
+                                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                            : null,
+                                        strokeWidth: 2,
+                                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    ),
+                                  );
+                                },
                                 errorBuilder: (context, error, stackTrace) {
                                   return Container(
                                     color: _primaryPurple,
@@ -1275,7 +1981,7 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                                             : '?',
                                         style: TextStyle(
                                           color: Colors.white,
-                                          fontSize: fontSize.clamp(20.0, 28.0),
+                                          fontSize: fontSize.clamp(isMobile ? 16.0 : 20.0, isMobile ? 24.0 : 28.0),
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -1292,7 +1998,7 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                                         : '?',
                                     style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: fontSize.clamp(20.0, 28.0),
+                                      fontSize: fontSize.clamp(isMobile ? 16.0 : 20.0, isMobile ? 24.0 : 28.0),
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -1300,10 +2006,13 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                               ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: isMobile ? 2 : 3),
                     Flexible(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 4 : 8,
+                          vertical: isMobile ? 1 : 2,
+                        ),
                         decoration: BoxDecoration(
                           color: _textLight,
                           borderRadius: BorderRadius.circular(12),
@@ -1312,10 +2021,10 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                           player.name.isNotEmpty ? player.name : 'Unknown',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: labelFontSize.clamp(10.0, 14.0),
+                            fontSize: labelFontSize,
                             fontWeight: FontWeight.bold,
                           ),
-                          maxLines: 1,
+                          maxLines: isMobile ? 2 : 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
                         ),
@@ -1323,19 +2032,21 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                     ),
                   ],
                 )
-              : Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                     Container(
-                      width: avatarSize.clamp(50.0, 80.0),
-                      height: avatarSize.clamp(50.0, 80.0),
+                      width: avatarSize,
+                      height: avatarSize,
                       decoration: BoxDecoration(
                         color: _primaryPurple.withValues(alpha: 0.28),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: _primaryPurple.withValues(alpha: 0.6),
-                          width: 3,
+                          color: isSelected
+                              ? _accentPink
+                              : _primaryPurple.withValues(alpha: 0.6),
+                          width: isSelected ? 5 : 3,
                           style: BorderStyle.solid,
                         ),
                       ),
@@ -1344,21 +2055,24 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                           slotId,
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: fontSize.clamp(14.0, 18.0),
+                            fontSize: fontSize.clamp(isMobile ? 14.0 : 16.0, isMobile ? 20.0 : 22.0),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: isMobile ? 2 : 3),
                     Flexible(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 6 : 8,
+                          vertical: isMobile ? 1 : 2,
+                        ),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              _primaryPurple.withValues(alpha: 0.9),
-                              _accentPink.withValues(alpha: 0.9),
+                              _primaryPurple.withValues(alpha: 0.7),
+                              _accentPink.withValues(alpha: 0.7),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -1369,36 +2083,38 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                           '(Kosong)',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: labelFontSize.clamp(10.0, 14.0),
+                            fontSize: labelFontSize.clamp(isMobile ? 8.0 : 9.0, isMobile ? 11.0 : 12.0),
                             fontWeight: FontWeight.bold,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     ),
                   ],
                 ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildPlayerListCard() {
+  Widget _buildPlayerListCard({required bool isMobile}) {
     return Card(
       color: _cardBg,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
         side: const BorderSide(color: _cardBorder, width: 2),
       ),
       elevation: 8,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isMobile ? 12 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               '📋 Daftar Pemain',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: isMobile ? 16 : 18,
                 fontWeight: FontWeight.bold,
                 color: _textLight,
               ),
@@ -1410,19 +2126,32 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
               value: _selectedClubId,
               decoration: InputDecoration(
                 labelText: 'Filter berdasarkan Klub',
+                labelStyle: TextStyle(fontSize: isMobile ? 13 : 14),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: _cardBorder, width: 2),
                 ),
                 filled: true,
                 fillColor: _cardBg,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isMobile ? 16 : 12,
+                ),
               ),
+              style: TextStyle(fontSize: isMobile ? 14 : 16),
               items: [
-                const DropdownMenuItem<int?>(value: null, child: Text('Semua Klub')),
+                DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text('Semua Klub', style: TextStyle(fontSize: isMobile ? 14 : 16)),
+                ),
                 ..._clubs.map((club) {
                   return DropdownMenuItem<int?>(
                     value: club.id,
-                    child: Text(club.name),
+                    child: Text(
+                      club.name,
+                      style: TextStyle(fontSize: isMobile ? 14 : 16),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   );
                 }),
               ],
@@ -1434,13 +2163,14 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
               },
             ),
             
-            const SizedBox(height: 16),
+            SizedBox(height: isMobile ? 12 : 16),
             
             // Player search
             TextField(
               controller: _playerSearchController,
               decoration: InputDecoration(
                 hintText: 'Ketik nama pemain....',
+                hintStyle: TextStyle(fontSize: isMobile ? 14 : 16),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: _cardBorder, width: 2),
@@ -1448,86 +2178,135 @@ class _BestElevenBuilderPageState extends State<BestElevenBuilderPage> {
                 filled: true,
                 fillColor: _cardBg,
                 prefixIcon: const Icon(Icons.search),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isMobile ? 16 : 12,
+                ),
               ),
+              style: TextStyle(fontSize: isMobile ? 14 : 16),
               onChanged: (_) => _filterPlayers(),
             ),
             
-            const SizedBox(height: 16),
+            SizedBox(height: isMobile ? 12 : 16),
             
             // Filter position label and clear button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  _currentFilterPositionCode != null 
-                      ? 'Filter: $_currentFilterPositionCode'
-                      : 'Pilih klub atau posisi',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: _textLight,
+                Flexible(
+                  child: Text(
+                    _currentFilterPositionCode != null 
+                        ? 'Filter: $_currentFilterPositionCode'
+                        : 'Pilih klub atau posisi',
+                    style: TextStyle(
+                      fontSize: isMobile ? 12 : 14,
+                      color: _textLight,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (_currentFilterPositionCode != null)
                   TextButton(
                     onPressed: _handleClearFilter,
-                    child: const Text(
-                      '✕ Hapus Filter',
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 8 : 12,
+                        vertical: isMobile ? 4 : 8,
+                      ),
+                      minimumSize: Size(isMobile ? 80 : 100, isMobile ? 32 : 36),
+                    ),
+                    child: Text(
+                      '✕ Hapus',
                       style: TextStyle(
                         color: Colors.red,
-                        fontSize: 12,
+                        fontSize: isMobile ? 11 : 12,
                       ),
                     ),
                   ),
               ],
             ),
             
-            const SizedBox(height: 16),
+            SizedBox(height: isMobile ? 12 : 16),
             
-            // Player list
-            SizedBox(
-              height: 400,
-              child: _filteredPlayers.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Tidak ada pemain yang cocok.',
-                        style: TextStyle(color: _textMuted, fontStyle: FontStyle.italic),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _filteredPlayers.length,
-                      itemBuilder: (context, index) {
-                        final player = _filteredPlayers[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: player.profileImageUrl != null
-                                  ? NetworkImage(player.profileImageUrl!)
-                                  : null,
-                              child: player.profileImageUrl == null
-                                  ? Text(
-                                      player.name.isNotEmpty 
-                                          ? player.name[0].toUpperCase() 
-                                          : '?',
-                                    )
-                                  : null,
+            // Player list - responsive height
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final screenHeight = MediaQuery.of(context).size.height;
+                final listHeight = isMobile 
+                    ? (screenHeight * 0.25).clamp(200.0, 350.0)
+                    : 400.0;
+                
+                return SizedBox(
+                  height: listHeight,
+                  child: _filteredPlayers.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Tidak ada pemain yang cocok.',
+                            style: TextStyle(
+                              color: _textMuted,
+                              fontStyle: FontStyle.italic,
+                              fontSize: isMobile ? 12 : 14,
                             ),
-                            title: Text(player.name),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('${player.nationality ?? '-'} • ${_formatCurrency(player.marketValue)}'),
-                              ],
-                            ),
-                            trailing: Chip(
-                              label: Text(player.position),
-                              backgroundColor: _primaryPurple.withValues(alpha: 0.2),
-                            ),
-                            onTap: () => _handlePlayerSelect(player),
                           ),
-                        );
-                      },
-                    ),
+                        )
+                      : ListView.builder(
+                          itemCount: _filteredPlayers.length,
+                          itemBuilder: (context, index) {
+                            final player = _filteredPlayers[index];
+                            return Card(
+                              margin: EdgeInsets.only(bottom: isMobile ? 6 : 8),
+                              child: ListTile(
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: isMobile ? 12 : 16,
+                                  vertical: isMobile ? 4 : 8,
+                                ),
+                                leading: CircleAvatar(
+                                  radius: isMobile ? 20 : 24,
+                                  backgroundColor: _primaryPurple,
+                                  backgroundImage: player.profileImageUrl != null && player.profileImageUrl!.isNotEmpty
+                                      ? NetworkImage(getProxiedUrl(player.profileImageUrl))
+                                      : null,
+                                  onBackgroundImageError: (exception, stackTrace) {
+                                    // Error loading image, will show child instead
+                                  },
+                                  child: player.profileImageUrl == null || player.profileImageUrl!.isEmpty
+                                      ? Text(
+                                          player.name.isNotEmpty 
+                                              ? player.name[0].toUpperCase() 
+                                              : '?',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: isMobile ? 14 : 16,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                                title: Text(
+                                  player.name,
+                                  style: TextStyle(fontSize: isMobile ? 14 : 16),
+                                ),
+                                subtitle: Text(
+                                  '${player.nationality ?? '-'} • ${_formatCurrency(player.marketValue)}',
+                                  style: TextStyle(fontSize: isMobile ? 11 : 13),
+                                ),
+                                trailing: Chip(
+                                  label: Text(
+                                    player.position,
+                                    style: TextStyle(fontSize: isMobile ? 10 : 12),
+                                  ),
+                                  backgroundColor: _primaryPurple.withValues(alpha: 0.2),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isMobile ? 6 : 8,
+                                    vertical: isMobile ? 0 : 4,
+                                  ),
+                                ),
+                                onTap: () => _handlePlayerSelect(player),
+                              ),
+                            );
+                          },
+                        ),
+                );
+              },
             ),
           ],
         ),
@@ -1586,4 +2365,5 @@ class PitchGridPainter extends CustomPainter {
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
+
 

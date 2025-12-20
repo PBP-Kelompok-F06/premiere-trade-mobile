@@ -101,7 +101,7 @@ class _MyClubPageState extends State<MyClubPage> {
         itemCount: _players.length,
         itemBuilder: (context, index) {
           final player = _players[index];
-          final priceFormat = NumberFormat.currency(symbol: '€ ', decimalDigits: 0);
+          final priceFormat = NumberFormat.currency(symbol: 'Rp ', decimalDigits: 0);
 
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
@@ -222,7 +222,7 @@ class _MyClubPageState extends State<MyClubPage> {
   }
 
   void _showPlayerDetail(BuildContext context, MyPlayer player, TransactionService service) {
-    final priceFormat = NumberFormat.currency(symbol: '€ ', decimalDigits: 0);
+    final priceFormat = NumberFormat.currency(symbol: 'Rp', decimalDigits: 0);
 
     showDialog(
       context: context,

@@ -92,7 +92,7 @@ class _TransferMarketPageState extends State<TransferMarketPage> {
         itemCount: _players.length,
         itemBuilder: (context, index) {
           final player = _players[index];
-          final priceFormat = NumberFormat.currency(symbol: '€ ', decimalDigits: 0);
+          final priceFormat = NumberFormat.currency(symbol: 'Rp ', decimalDigits: 0);
           
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
@@ -233,7 +233,7 @@ class _TransferMarketPageState extends State<TransferMarketPage> {
   }
 
   void _showPlayerDetail(BuildContext context, PlayerForSale player, TransactionService service) {
-    final priceFormat = NumberFormat.currency(symbol: '€ ', decimalDigits: 0);
+    final priceFormat = NumberFormat.currency(symbol: 'Rp ', decimalDigits: 0);
 
     showDialog(
       context: context,
@@ -416,7 +416,7 @@ class _TransferMarketPageState extends State<TransferMarketPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Beli Pemain'),
-        content: Text('Apakah Anda yakin ingin membeli ${player.namaPemain} dengan harga ${NumberFormat.currency(symbol: '€ ', decimalDigits: 0).format(player.marketValue)}?'),
+        content: Text('Apakah Anda yakin ingin membeli ${player.namaPemain} dengan harga ${NumberFormat.currency(symbol: 'Rp ', decimalDigits: 0).format(player.marketValue)}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -471,7 +471,7 @@ class _TransferMarketPageState extends State<TransferMarketPage> {
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'Harga Tawaran',
-                prefixText: '€ ',
+                prefixText: ' Rp ',
                 border: OutlineInputBorder(),
               ),
             ),
