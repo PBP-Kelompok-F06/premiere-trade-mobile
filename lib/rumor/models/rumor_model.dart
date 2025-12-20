@@ -9,7 +9,6 @@ class Rumor {
   String content;
   String author;
   
-  // Info Pemain
   String pemainNama;
   String pemainThumbnail;
   int pemainValue;
@@ -17,7 +16,6 @@ class Rumor {
   String pemainPosisi;
   String pemainNegara;
 
-  // Info Klub
   String clubAsalNama;
   String clubAsalLogo;
   String clubTujuanNama;
