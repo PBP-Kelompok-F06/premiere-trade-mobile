@@ -20,7 +20,7 @@ class RumorsPage extends StatefulWidget {
 }
 
 class _RumorsPageState extends State<RumorsPage> {
-  // --- STATE ---
+  // STATE
   String _searchName = "";
   String? _selectedClubAsal;
   String? _selectedClubTujuan;
@@ -28,10 +28,14 @@ class _RumorsPageState extends State<RumorsPage> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
 
+  // State untuk menyimpan status admin
+  bool _isClubAdmin = false;
+
   @override
   void initState() {
     super.initState();
     _fetchClubs();
+    _checkUserRole(); // Cek role user saat halaman dibuka
   }
 
   @override
@@ -39,6 +43,22 @@ class _RumorsPageState extends State<RumorsPage> {
     _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  // CEK ROLE USER
+  Future<void> _checkUserRole() async {
+    final request = context.read<CookieRequest>();
+    try {
+      final response = await request.get('http://localhost:8000/rumors/get-user-role/');
+      
+      if (mounted) {
+        setState(() {
+          _isClubAdmin = response['is_club_admin'] ?? false;
+        });
+      }
+    } catch (e) {
+      print("Error checking user role: $e");
+    }
   }
 
   Future<void> _fetchClubs() async {
@@ -109,7 +129,7 @@ class _RumorsPageState extends State<RumorsPage> {
           SliverToBoxAdapter(
             child: Container(
               padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.only(bottom: 8), // Sedikit jarak dengan list
+              margin: const EdgeInsets.only(bottom: 8), // jarak dengan list
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
@@ -240,23 +260,26 @@ class _RumorsPageState extends State<RumorsPage> {
         ],
       ),
       
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const RumorFormPage()),
-          ).then((_) => setState(() {}));
-        },
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.purple[700],
-        elevation: 4,
-        child: const Icon(Icons.add),
-      ),
+      // Hilangkan tombol create jika User adalah Admin
+      floatingActionButton: _isClubAdmin 
+        ? null // Jika admin, return null (tombol hilang)
+        : FloatingActionButton(
+            heroTag: "createRumorFab",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const RumorFormPage()),
+              ).then((_) => setState(() {}));
+            },
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.purple[700],
+            elevation: 4,
+            child: const Icon(Icons.add),
+          ),
     );
   }
 
-  // --- WIDGET HELPER ---
-
+  // WIDGET HELPER 
   Widget _buildDropdown({
     required String hint, 
     required String? value, 
@@ -304,37 +327,85 @@ class _RumorsPageState extends State<RumorsPage> {
       statusIcon = Icons.access_time_filled;
     }
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => RumorDetailPage(rumor: rumor),
+    // Helper time since
+    String getTimeSince(String createdAt) {
+      try {
+        DateTime created = DateTime.parse(createdAt);
+        DateTime now = DateTime.now();
+        Duration difference = now.difference(created);
+        
+        if (difference.inSeconds < 60) {
+          return 'sekarang';
+        } else if (difference.inMinutes < 60) {
+          return '${difference.inMinutes} menit lalu';
+        } else if (difference.inHours < 24) {
+          return '${difference.inHours} jam lalu';
+        } else if (difference.inDays < 7) {
+          return '${difference.inDays} hari lalu';
+        } else if (difference.inDays < 30) {
+          int weeks = difference.inDays ~/ 7;
+          return '$weeks minggu lalu';
+        } else if (difference.inDays < 365) {
+          int months = difference.inDays ~/ 30;
+          int remainingWeeks = (difference.inDays % 30) ~/ 7;
+          if (remainingWeeks > 0) {
+            return '$months bulan, $remainingWeeks minggu lalu';
+          }
+          return '$months bulan lalu';
+        } else {
+          int years = difference.inDays ~/ 365;
+          int remainingMonths = (difference.inDays % 365) ~/ 30;
+          if (remainingMonths > 0) {
+            return '$years tahun, $remainingMonths bulan lalu';
+          }
+          return '$years tahun lalu';
+        }
+      } catch (e) {
+        return createdAt;
+      }
+    }
+
+    // --- STRUKTUR BARU ---
+    // Stack di paling luar agar bisa menumpuk Icon di atas Card
+    return Stack(
+      clipBehavior: Clip.none, // Izinkan icon keluar dari batas Stack
+      children: [
+        // 1. KARTU UTAMA (Shadow + Material + InkWell + Konten)
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ).then((_) => setState(() {})); 
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-              child: Row(
-                children: [
-                  Hero(
-                    tag: 'player_img_${rumor.id}',
-                    child: Container(
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            clipBehavior: Clip.antiAlias, // Clip ripple agar rapi di sudut
+            child: InkWell(
+              onTap: () async {
+                await Future.delayed(const Duration(milliseconds: 200));
+                if (!context.mounted) return;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RumorDetailPage(rumor: rumor),
+                  ),
+                ).then((_) => setState(() {})); 
+              },
+              splashColor: Colors.purple.withOpacity(0.1),
+              highlightColor: Colors.purple.withOpacity(0.05),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                child: Row(
+                  children: [
+                    // FOTO PEMAIN
+                    Container(
                       width: 65,
                       height: 65,
                       decoration: BoxDecoration(
@@ -365,78 +436,101 @@ class _RumorsPageState extends State<RumorsPage> {
                               ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
+                    const SizedBox(width: 8),
 
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          height: 24,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Text(
-                              rumor.pemainNama,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                    // INFO TENGAH
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            height: 24,
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Text(
+                                rumor.pemainNama,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
                               ),
                             ),
                           ),
+                          const SizedBox(height: 6),
+                          
+                          Row(
+                            children: [
+                              Container(
+                                width: 8, height: 8,
+                                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      getTimeSince(rumor.createdAt),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 8),
+
+                    // LOGO KLUB
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildClubLogo(rumor.clubAsalLogo),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 1.0),
+                          child: Icon(Icons.arrow_right_alt, color: Colors.grey, size: 16),
                         ),
-                        const SizedBox(height: 6),
-                        
-                        Row(
-                          children: [
-                            Container(
-                              width: 8, height: 8,
-                              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              rumor.createdAt,
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                            ),
-                          ],
-                        ),
+                        _buildClubLogo(rumor.clubTujuanLogo),
                       ],
                     ),
-                  ),
-
-                  Row(
-                    children: [
-                      _buildClubLogo(rumor.clubAsalLogo),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 4.0),
-                        child: Icon(Icons.arrow_right_alt, color: Colors.grey),
-                      ),
-                      _buildClubLogo(rumor.clubTujuanLogo),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            Positioned(
-              left: -10,
-              top: 35, 
-              child: Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                  ],
                 ),
-                child: Icon(statusIcon, color: Colors.white, size: 14),
               ),
             ),
-          ],
+          ),
         ),
-      ),
+
+        // 2. ICON STATUS
+        Positioned(
+          left: -10,
+          top: 35, 
+          child: Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: statusColor,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+            ),
+            child: Icon(statusIcon, color: Colors.white, size: 14),
+          ),
+        ),
+      ],
     );
   }
 
