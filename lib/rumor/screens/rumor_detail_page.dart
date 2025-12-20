@@ -266,6 +266,7 @@ class RumorDetailPage extends StatelessWidget {
                    ),
 
                    // TOMBOL REVERT
+                   if (rumor.status != 'pending')
                    ElevatedButton.icon(
                      onPressed: () => _handleAction(
                        context, 
