@@ -9,20 +9,47 @@ String getProxiedUrl(String? url) {
   return "https://wsrv.nl/?url=$url&output=png";
 }
 
-class RumorDetailPage extends StatelessWidget {
+// UBAH JADI STATEFUL WIDGET
+class RumorDetailPage extends StatefulWidget {
   final Rumor rumor;
 
   const RumorDetailPage({super.key, required this.rumor});
 
+  @override
+  State<RumorDetailPage> createState() => _RumorDetailPageState();
+}
+
+class _RumorDetailPageState extends State<RumorDetailPage> {
+  
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration.zero, () {
+      _incrementView();
+    });
+  }
+
+  Future<void> _incrementView() async {
+    final request = context.read<CookieRequest>();
+    try {
+      await request.post(
+        "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${widget.rumor.id}/increment-view-flutter/", 
+        {}
+      );
+    } catch (e) {
+      print("Gagal update views: $e");
+    }
+  }
+
   // LOGIC TIME SINCE 
   String getTimeSince(String createdAt) {
     try {
-      DateTime created = DateTime.parse(createdAt);
+      DateTime created = DateTime.parse(createdAt).toLocal();
       DateTime now = DateTime.now();
       Duration difference = now.difference(created);
 
       if (difference.inSeconds < 60) {
-        return 'Baru saja';
+        return '0 menit lalu';
       } else if (difference.inMinutes < 60) {
         return '${difference.inMinutes} menit lalu';
       } else if (difference.inHours < 24) {
@@ -88,7 +115,7 @@ class RumorDetailPage extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildStatusBadge(rumor.status),
+                _buildStatusBadge(widget.rumor.status),
               ],
             ),
             const SizedBox(height: 20),
@@ -96,16 +123,16 @@ class RumorDetailPage extends StatelessWidget {
             // --- SECTION 1: FOTO & NAMA PEMAIN ---
             CircleAvatar(
               radius: 50,
-              backgroundImage: NetworkImage(getProxiedUrl(rumor.pemainThumbnail)),
+              backgroundImage: NetworkImage(getProxiedUrl(widget.rumor.pemainThumbnail)),
               backgroundColor: Colors.grey[200],
             ),
             const SizedBox(height: 12),
             Text(
-              rumor.pemainNama,
+              widget.rumor.pemainNama,
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
             ),
             Text(
-              "${rumor.pemainPosisi} • ${rumor.pemainNegara}",
+              "${widget.rumor.pemainPosisi} • ${widget.rumor.pemainNegara}",
               style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             
@@ -122,9 +149,9 @@ class RumorDetailPage extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildClubInfo(rumor.clubAsalLogo, rumor.clubAsalNama),
+                  _buildClubInfo(widget.rumor.clubAsalLogo, widget.rumor.clubAsalNama),
                   const Icon(Icons.arrow_forward, size: 30, color: Colors.grey),
-                  _buildClubInfo(rumor.clubTujuanLogo, rumor.clubTujuanNama),
+                  _buildClubInfo(widget.rumor.clubTujuanLogo, widget.rumor.clubTujuanNama),
                 ],
               ),
             ),
@@ -134,9 +161,9 @@ class RumorDetailPage extends StatelessWidget {
             // SECTION 3: PROFIL PEMAIN 
             Row(
               children: [
-                _buildStatCard("Market Value", formatCurrency(rumor.pemainValue)),
+                _buildStatCard("Market Value", formatCurrency(widget.rumor.pemainValue)),
                 const SizedBox(width: 12),
-                _buildStatCard("Usia", "${rumor.pemainUmur} Tahun"),
+                _buildStatCard("Usia", "${widget.rumor.pemainUmur} Tahun"),
               ],
             ),            
             const SizedBox(height: 24),
@@ -155,7 +182,7 @@ class RumorDetailPage extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                "${rumor.pemainNama} transfer dari ${rumor.clubAsalNama} ke ${rumor.clubTujuanNama}",
+                "${widget.rumor.pemainNama} transfer dari ${widget.rumor.clubAsalNama} ke ${widget.rumor.clubTujuanNama}",
                 style: TextStyle(fontSize: 13,fontStyle: FontStyle.italic, color: Colors.grey[600]),
               ),
             ),
@@ -169,7 +196,7 @@ class RumorDetailPage extends StatelessWidget {
                 boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
               ),
               child: Text(
-                rumor.content,
+                widget.rumor.content,
                 style: const TextStyle(fontSize: 15, height: 1.5),
               ),
             ),
@@ -189,7 +216,7 @@ class RumorDetailPage extends StatelessWidget {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          rumor.author,
+                          widget.rumor.author,
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -198,7 +225,8 @@ class RumorDetailPage extends StatelessWidget {
                       Text('•', style: TextStyle(color: Colors.grey[600])),
                       const SizedBox(width: 6),
                       Text(
-                        '${rumor.views} views',
+                        // Kita tampilkan views yang lama dulu karena update terjadi async
+                        '${widget.rumor.views} views',
                         style: TextStyle(color: Colors.grey[600], fontSize: 13),
                       ),
                     ],
@@ -217,7 +245,7 @@ class RumorDetailPage extends StatelessWidget {
                       const Icon(Icons.access_time, size: 12, color: Colors.red),
                       const SizedBox(width: 4),
                       Text(
-                        getTimeSince(rumor.createdAt),
+                        getTimeSince(widget.rumor.createdAt),
                         style: const TextStyle(
                           color: Colors.red,
                           fontWeight: FontWeight.bold,
@@ -233,19 +261,18 @@ class RumorDetailPage extends StatelessWidget {
             const SizedBox(height: 15),
 
             // SECTION 5: TOMBOL AKSI
-            if (rumor.isAdmin) ...[
+            if (widget.rumor.isAdmin) ...[
               const SizedBox(height: 8),
-              // Menggunakan Wrap agar tombol tidak overflow jika layar sempit
               Wrap(
-                spacing: 8.0, // Jarak antar tombol (horizontal)
-                runSpacing: 8.0, // Jarak antar baris tombol (jika turun ke bawah)
+                spacing: 8.0, 
+                runSpacing: 8.0, 
                 alignment: WrapAlignment.spaceEvenly,
                 children: [
                    // TOMBOL VERIFY
                    ElevatedButton.icon(
                      onPressed: () => _handleAction(
                        context, 
-                       "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${rumor.id}/verify-flutter/",
+                       "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${widget.rumor.id}/verify-flutter/", 
                        "Rumor berhasil diverifikasi!"
                      ),
                      icon: const Icon(Icons.check),
@@ -257,7 +284,7 @@ class RumorDetailPage extends StatelessWidget {
                    ElevatedButton.icon(
                      onPressed: () => _handleAction(
                        context, 
-                       "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${rumor.id}/deny-flutter/",
+                       "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${widget.rumor.id}/deny-flutter/", 
                        "Rumor berhasil ditolak!"
                      ),
                      icon: const Icon(Icons.close),
@@ -266,11 +293,11 @@ class RumorDetailPage extends StatelessWidget {
                    ),
 
                    // TOMBOL REVERT
-                   if (rumor.status != 'pending')
+                   if (widget.rumor.status != 'pending')
                    ElevatedButton.icon(
                      onPressed: () => _handleAction(
                        context, 
-                       "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${rumor.id}/revert-flutter/",
+                       "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${widget.rumor.id}/revert-flutter/", 
                        "Status dikembalikan ke Menunggu Verifikasi!"
                      ),
                      icon: const Icon(Icons.undo),
@@ -279,7 +306,7 @@ class RumorDetailPage extends StatelessWidget {
                    ),
                 ],
               )
-            ] else if (rumor.isAuthor) ...[
+            ] else if (widget.rumor.isAuthor) ...[
                Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -288,7 +315,7 @@ class RumorDetailPage extends StatelessWidget {
                        final result = await Navigator.push(
                          context,
                          MaterialPageRoute(
-                           builder: (context) => EditRumorFormPage(rumor: rumor),
+                           builder: (context) => EditRumorFormPage(rumor: widget.rumor),
                          ),
                        );
 
@@ -314,7 +341,7 @@ class RumorDetailPage extends StatelessWidget {
                                     Navigator.pop(context);
                                     _handleAction(
                                       context, 
-                                      "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${rumor.id}/delete-flutter/", 
+                                      "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${widget.rumor.id}/delete-flutter/", 
                                       "Rumor berhasil dihapus!"
                                     );
                                   },
