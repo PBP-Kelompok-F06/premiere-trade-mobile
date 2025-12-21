@@ -33,17 +33,17 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Logo atau Judul
-              const Icon(Icons.shield, size: 80, color: AppColors.primary),
+              Image.asset('assets/images/logo.png', width: 250),
               const SizedBox(height: 16),
-              const Text(
-                "PREMIERE TRADE",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                  letterSpacing: 1.5,
-                ),
-              ),
+              // const Text(
+              //   "PREMIERE TRADE",
+              //   style: TextStyle(
+              //     fontSize: 28,
+              //     fontWeight: FontWeight.bold,
+              //     color: AppColors.primary,
+              //     letterSpacing: 1.5,
+              //   ),
+              // ),
               const SizedBox(height: 40),
 
               // Input Username
