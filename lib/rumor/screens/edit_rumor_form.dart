@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:premiere_trade/rumor/models/rumor_model.dart';
 
 class EditRumorFormPage extends StatefulWidget {
-  final Rumor rumor; // Data rumor lama dilempar ke sini
+  final Rumor rumor; // Data rumor lama
 
   const EditRumorFormPage({super.key, required this.rumor});
 
@@ -63,7 +63,7 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
     }
   }
 
-  // Logic saat Klub Asal diganti (sama kayak Create)
+  // Logic saat Klub Asal diganti
   Future<void> _onClubAsalChanged(String? clubId) async {
     if (clubId == null) return;
     setState(() {
@@ -112,16 +112,16 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- [BARU] WARNING BOX (Persis seperti Django Template) ---
+              // WARNING BOX
               if (widget.rumor.status == 'verified' || widget.rumor.status == 'denied') ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   margin: const EdgeInsets.only(bottom: 24),
                   decoration: BoxDecoration(
-                    color: Colors.yellow[100], // bg-yellow-100
+                    color: Colors.yellow[100],
                     borderRadius: BorderRadius.circular(8),
-                    // Border kiri tebal (border-l-4 border-yellow-500)
+                  
                     border: Border(
                       left: BorderSide(
                         color: Colors.yellow[700]!, 
@@ -134,7 +134,7 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
                     children: [
                       RichText(
                         text: TextSpan(
-                          style: TextStyle(color: Colors.yellow[900], fontSize: 14), // text-yellow-800
+                          style: TextStyle(color: Colors.yellow[900], fontSize: 14),
                           children: [
                             const TextSpan(text: "⚠️ Rumor ini berstatus "),
                             TextSpan(
@@ -157,7 +157,6 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
                   ),
                 ),
               ],
-              // -------------------------------------------------------------
 
               // DROPDOWN KLUB ASAL
               DropdownButtonFormField<String>(
@@ -242,15 +241,21 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
 
                         if (context.mounted) {
                             if (response['status'] == 'success') {
-                                Navigator.pop(context, true); // True = perlu refresh
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Rumor berhasil diupdate!")));
+                                // Close halaman edit
+                                Navigator.pop(context, true); 
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(response['message']))
+                                );
                             } else {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Gagal: ${response['message']}")));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Gagal: ${response['message']}"))
+                                );
                             }
                         }
                     }
                   },
-                  child: const Text("Simpan Perubahan"),
+                  child: const Text("Perbarui Rumor"),
                 ),
               ),
             ],

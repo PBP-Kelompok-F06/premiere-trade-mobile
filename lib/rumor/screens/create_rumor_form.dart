@@ -33,7 +33,6 @@ class _RumorFormPageState extends State<RumorFormPage> {
   // 1. Fetch semua klub untuk "Club Asal"
   Future<void> _fetchInitialClubs() async {
     final request = context.read<CookieRequest>();
-    // Kita bisa reuse endpoint get-designated-clubs tanpa parameter untuk dapat semua list
     try {
       final response = await request.get('http://localhost:8000/rumors/get-designated-clubs/');
       setState(() {
