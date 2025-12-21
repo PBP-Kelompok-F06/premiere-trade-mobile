@@ -5,6 +5,9 @@
 
 ---
 
+## Tautan Submisi
+Tautan APK Release: https://app.bitrise.io/app/57632939-3859-47cc-8c15-a20eb8555c68/installable-artifacts/dbc8656e684df905/public-install-page/cbec8380bc0fa922d6a6738cbdf1c0e8
+
 ## Anggota Kelompok
 
 | Nama                          | NIM        |
