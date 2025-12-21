@@ -10,7 +10,7 @@ String getProxiedUrl(String? url) {
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return "https://wsrv.nl/?url=$url&output=png";
   }
-  return "https://wsrv.nl/?url=http://localhost:8000$url&output=png";
+  return "https://wsrv.nl/?url=https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id$url&output=png";
 }
 
 class BestElevenBuilderPage extends StatefulWidget {
