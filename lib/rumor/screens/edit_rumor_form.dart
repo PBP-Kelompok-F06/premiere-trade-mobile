@@ -47,7 +47,7 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
       final allClubs = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/');
       
       // Load List Klub Tujuan & Pemain berdasarkan Klub Asal yang lama (untuk Dropdown 2 & 3)
-      final designatedClubs = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/?club_asal=$_selectedClubAsalId');
+      final designatedClubs = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/?club_asal=$_selectedClubAsalId');
       final players = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-players/?club_id=$_selectedClubAsalId');
 
       if (mounted) {
