@@ -118,7 +118,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: OutlinedButton(
                     onPressed: () async {
                       final response = await request.logout(
-                          "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id//auth/logout/");
+                          "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/auth/logout/");
                       if (context.mounted && response['status']) {
                         Navigator.pushReplacement(
                           context,
