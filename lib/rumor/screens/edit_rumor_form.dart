@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:premiere_trade/rumor/models/rumor_model.dart';
 
 class EditRumorFormPage extends StatefulWidget {
-  final Rumor rumor; // Data rumor lama dilempar ke sini
+  final Rumor rumor; // Data rumor lama
 
   const EditRumorFormPage({super.key, required this.rumor});
 
@@ -44,11 +44,11 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
     final request = context.read<CookieRequest>();
     try {
       // Load List Semua Klub (untuk Dropdown 1)
-      final allClubs = await request.get('http://localhost:8000/rumors/get-designated-clubs/');
+      final allClubs = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/');
       
       // Load List Klub Tujuan & Pemain berdasarkan Klub Asal yang lama (untuk Dropdown 2 & 3)
-      final designatedClubs = await request.get('http://localhost:8000/rumors/get-designated-clubs/?club_asal=$_selectedClubAsalId');
-      final players = await request.get('http://localhost:8000/rumors/get-players/?club_id=$_selectedClubAsalId');
+      final designatedClubs = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/?club_asal=$_selectedClubAsalId');
+      final players = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-players/?club_id=$_selectedClubAsalId');
 
       if (mounted) {
         setState(() {
@@ -63,7 +63,7 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
     }
   }
 
-  // Logic saat Klub Asal diganti (sama kayak Create)
+  // Logic saat Klub Asal diganti
   Future<void> _onClubAsalChanged(String? clubId) async {
     if (clubId == null) return;
     setState(() {
@@ -76,8 +76,8 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
 
     final request = context.read<CookieRequest>();
     try {
-      final clubsRes = await request.get('http://localhost:8000/rumors/get-designated-clubs/?club_asal=$clubId');
-      final playersRes = await request.get('http://localhost:8000/rumors/get-players/?club_id=$clubId');
+      final clubsRes = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/?club_asal=$clubId');
+      final playersRes = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-players/?club_id=$clubId');
 
       if (mounted) {
         setState(() {
@@ -112,16 +112,16 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- [BARU] WARNING BOX (Persis seperti Django Template) ---
+              // WARNING BOX
               if (widget.rumor.status == 'verified' || widget.rumor.status == 'denied') ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   margin: const EdgeInsets.only(bottom: 24),
                   decoration: BoxDecoration(
-                    color: Colors.yellow[100], // bg-yellow-100
+                    color: Colors.yellow[100],
                     borderRadius: BorderRadius.circular(8),
-                    // Border kiri tebal (border-l-4 border-yellow-500)
+                  
                     border: Border(
                       left: BorderSide(
                         color: Colors.yellow[700]!, 
@@ -134,7 +134,7 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
                     children: [
                       RichText(
                         text: TextSpan(
-                          style: TextStyle(color: Colors.yellow[900], fontSize: 14), // text-yellow-800
+                          style: TextStyle(color: Colors.yellow[900], fontSize: 14),
                           children: [
                             const TextSpan(text: "⚠️ Rumor ini berstatus "),
                             TextSpan(
@@ -157,7 +157,6 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
                   ),
                 ),
               ],
-              // -------------------------------------------------------------
 
               // DROPDOWN KLUB ASAL
               DropdownButtonFormField<String>(
@@ -231,7 +230,7 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
                   onPressed: () async {
                     if (_formKey.currentState!.validate()) {
                         final response = await request.postJson(
-                          "http://localhost:8000/rumors/${widget.rumor.id}/edit-flutter/",
+                          "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${widget.rumor.id}/edit-flutter/",
                           jsonEncode({
                             'club_asal': _selectedClubAsalId,
                             'club_tujuan': _selectedClubTujuanId,
@@ -242,15 +241,21 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
 
                         if (context.mounted) {
                             if (response['status'] == 'success') {
-                                Navigator.pop(context, true); // True = perlu refresh
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Rumor berhasil diupdate!")));
+                                // Close halaman edit
+                                Navigator.pop(context, true); 
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(response['message']))
+                                );
                             } else {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Gagal: ${response['message']}")));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Gagal: ${response['message']}"))
+                                );
                             }
                         }
                     }
                   },
-                  child: const Text("Simpan Perubahan"),
+                  child: const Text("Perbarui Rumor"),
                 ),
               ),
             ],

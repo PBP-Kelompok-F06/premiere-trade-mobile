@@ -22,7 +22,7 @@ class _ListPlayerPageState extends State<ListPlayerPage> {
     // If you using chrome, use URL http://localhost:8000
     try {
       final response = await request.get(
-        'http://localhost:8000/api/club/${widget.club.pk}/players/',
+        'https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/api/club/${widget.club.pk}/players/',
       );
 
       if (response == null) {
