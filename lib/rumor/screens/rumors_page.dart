@@ -335,7 +335,7 @@ class _RumorsPageState extends State<RumorsPage> {
         Duration difference = now.difference(created);
         
         if (difference.inSeconds < 60) {
-          return 'sekarang';
+          return '0 menit lalu';
         } else if (difference.inMinutes < 60) {
           return '${difference.inMinutes} menit lalu';
         } else if (difference.inHours < 24) {

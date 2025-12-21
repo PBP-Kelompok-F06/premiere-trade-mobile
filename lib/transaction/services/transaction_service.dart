@@ -4,7 +4,7 @@ import '../models/transaction_model.dart';
 
 class TransactionService {
   final CookieRequest request;
-  static const String baseUrl = 'http://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/player_transaction';
+  static const String baseUrl = 'https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/player_transaction';
 
   TransactionService(this.request);
 

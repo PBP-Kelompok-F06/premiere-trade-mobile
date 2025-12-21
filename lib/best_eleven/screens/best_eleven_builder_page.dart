@@ -12,7 +12,7 @@ String getProxiedUrl(String? url) {
     return "https://wsrv.nl/?url=$url&output=png";
   }
   // Jika URL relatif, tambahkan base URL dari Django
-  return "https://wsrv.nl/?url=http://localhost:8000$url&output=png";
+  return "https://wsrv.nl/?url=https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id$url&output=png";
 }
 
 class BestElevenBuilderPage extends StatefulWidget {
