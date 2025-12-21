@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:dropdown_search/dropdown_search.dart'; 
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 
@@ -14,7 +15,7 @@ class _RumorFormPageState extends State<RumorFormPage> {
   final _formKey = GlobalKey<FormState>();
   String _content = "";
 
-  // Data List untuk Dropdown
+  // Data List 
   List<dynamic> _clubAsalList = [];
   List<dynamic> _clubTujuanList = [];
   List<dynamic> _playerList = [];
@@ -30,17 +31,15 @@ class _RumorFormPageState extends State<RumorFormPage> {
     _fetchInitialClubs();
   }
 
-  // 1. Fetch semua klub untuk "Club Asal"
+  // LOGIKA FETCH DATA 
   Future<void> _fetchInitialClubs() async {
     final request = context.read<CookieRequest>();
     try {
       final response = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/');
       setState(() {
         _clubAsalList = response;
-        // Set default ke klub pertama
         if (response.isNotEmpty) {
           _selectedClubAsalId = response[0]['id'].toString();
-          // Load Club Tujuan dan Pemain untuk klub pertama
           _onClubAsalChanged(_selectedClubAsalId);
         }
       });
@@ -49,37 +48,33 @@ class _RumorFormPageState extends State<RumorFormPage> {
     }
   }
 
-  // 2. Fetch Klub Tujuan & Pemain saat Club Asal berubah
   Future<void> _onClubAsalChanged(String? clubId) async {
     if (clubId == null) return;
     setState(() {
-        _selectedClubAsalId = clubId;
-        _selectedClubTujuanId = null; // Reset
-        _selectedPlayerId = null; // Reset
-        _clubTujuanList = [];
-        _playerList = [];
+      _selectedClubAsalId = clubId;
+      _selectedClubTujuanId = null; 
+      _selectedPlayerId = null; 
+      _clubTujuanList = [];
+      _playerList = [];
     });
 
     final request = context.read<CookieRequest>();
     try {
-        // Fetch Designated Clubs
-        final clubsRes = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/?club_asal=$clubId');
-        // Fetch Players
-        final playersRes = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-players/?club_id=$clubId');
+      final clubsRes = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/?club_asal=$clubId');
+      final playersRes = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-players/?club_id=$clubId');
 
-        setState(() {
-            _clubTujuanList = clubsRes;
-            _playerList = playersRes;
-            // Set default ke item pertama jika ada
-            if (clubsRes.isNotEmpty) {
-              _selectedClubTujuanId = clubsRes[0]['id'].toString();
-            }
-            if (playersRes.isNotEmpty) {
-              _selectedPlayerId = playersRes[0]['id'].toString();
-            }
-        });
+      setState(() {
+        _clubTujuanList = clubsRes;
+        _playerList = playersRes;
+        if (clubsRes.isNotEmpty) {
+          _selectedClubTujuanId = clubsRes[0]['id'].toString();
+        }
+        if (playersRes.isNotEmpty) {
+          _selectedPlayerId = playersRes[0]['id'].toString();
+        }
+      });
     } catch (e) {
-        print("Error fetching dependent data: $e");
+      print("Error fetching dependent data: $e");
     }
   }
 
@@ -96,50 +91,116 @@ class _RumorFormPageState extends State<RumorFormPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // DROPDOWN KLUB ASAL
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: "Klub Asal", border: OutlineInputBorder()),
-                value: _selectedClubAsalId,
-                items: _clubAsalList.map<DropdownMenuItem<String>>((item) {
-                  return DropdownMenuItem<String>(
-                    value: item['id'].toString(),
-                    child: Text(item['name']),
-                  );
-                }).toList(),
-                onChanged: _onClubAsalChanged,
-                validator: (v) => v == null ? "Pilih klub asal" : null,
+              // 1. DROPDOWN SEARCH: KLUB ASAL
+              DropdownSearch<dynamic>(
+                popupProps: PopupProps.menu( 
+                  showSearchBox: false,
+                  fit: FlexFit.loose,
+                  constraints: const BoxConstraints(maxHeight: 300),
+                ),
+                items: (filter, loadProps) {
+                  if (filter == null || filter.isEmpty) {
+                    return _clubAsalList;
+                  }
+                  return _clubAsalList.where((element) => 
+                    element['name'].toString().toLowerCase().contains(filter.toLowerCase())
+                  ).toList();
+                },
+                itemAsString: (item) => item['name'], 
+                compareFn: (item, selectedItem) => item['id'] == selectedItem['id'],
+                selectedItem: _clubAsalList.isEmpty || _selectedClubAsalId == null
+                    ? null
+                    : _clubAsalList.firstWhere(
+                        (item) => item['id'].toString() == _selectedClubAsalId,
+                        orElse: () => null),
+                decoratorProps: const DropDownDecoratorProps(
+                  decoration: InputDecoration(
+                    labelText: "Klub Asal",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                onChanged: (val) {
+                  if (val != null) {
+                    _onClubAsalChanged(val['id'].toString());
+                  }
+                },
+                validator: (val) => val == null ? "Pilih klub asal" : null,
               ),
               const SizedBox(height: 16),
 
-              // DROPDOWN KLUB TUJUAN
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: "Klub Tujuan", border: OutlineInputBorder()),
-                value: _selectedClubTujuanId,
-                items: _clubTujuanList.map<DropdownMenuItem<String>>((item) {
-                  return DropdownMenuItem<String>(
-                    value: item['id'].toString(),
-                    child: Text(item['name']),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedClubTujuanId = val),
-                validator: (v) => v == null ? "Pilih klub tujuan" : null,
-                hint: const Text("Pilih Klub Tujuan"),
+              // 2. DROPDOWN SEARCH: KLUB TUJUAN
+              DropdownSearch<dynamic>(
+                popupProps: PopupProps.menu(
+                  showSearchBox: false,
+                  fit: FlexFit.loose,
+                  constraints: const BoxConstraints(maxHeight: 300),
+                ),
+                items: (filter, loadProps) {
+                  if (filter == null || filter.isEmpty) {
+                    return _clubTujuanList;
+                  }
+                  return _clubTujuanList.where((element) => 
+                    element['name'].toString().toLowerCase().contains(filter.toLowerCase())
+                  ).toList();
+                },
+                itemAsString: (item) => item['name'],
+                compareFn: (item, selectedItem) => item['id'] == selectedItem['id'],
+                selectedItem: _clubTujuanList.isEmpty || _selectedClubTujuanId == null
+                    ? null
+                    : _clubTujuanList.firstWhere(
+                        (item) => item['id'].toString() == _selectedClubTujuanId,
+                        orElse: () => null),
+                decoratorProps: const DropDownDecoratorProps(
+                  decoration: InputDecoration(
+                    labelText: "Klub Tujuan",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _selectedClubTujuanId = val['id'].toString());
+                  }
+                },
+                validator: (val) => val == null ? "Pilih klub tujuan" : null,
               ),
               const SizedBox(height: 16),
 
-              // DROPDOWN PEMAIN
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: "Pemain", border: OutlineInputBorder()),
-                value: _selectedPlayerId,
-                items: _playerList.map<DropdownMenuItem<String>>((item) {
-                  return DropdownMenuItem<String>(
-                    value: item['id'].toString(),
-                    child: Text(item['nama_pemain']),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedPlayerId = val),
-                validator: (v) => v == null ? "Pilih pemain" : null,
-                hint: const Text("Pilih Pemain"),
+              // 3. DROPDOWN SEARCH: PEMAIN
+              DropdownSearch<dynamic>(
+                popupProps: PopupProps.menu(
+                  showSearchBox: true,
+                  constraints: const BoxConstraints(maxHeight: 300),
+                  searchFieldProps: const TextFieldProps(
+                    decoration: InputDecoration(hintText: "Cari pemain..."),
+                  ),
+                ),
+                items: (filter, loadProps) {
+                  if (filter == null || filter.isEmpty) {
+                    return _playerList;
+                  }
+                  return _playerList.where((element) => 
+                    element['nama_pemain'].toString().toLowerCase().contains(filter.toLowerCase())
+                  ).toList();
+                },
+                itemAsString: (item) => item['nama_pemain'],
+                compareFn: (item, selectedItem) => item['id'] == selectedItem['id'],
+                selectedItem: _playerList.isEmpty || _selectedPlayerId == null
+                    ? null
+                    : _playerList.firstWhere(
+                        (item) => item['id'].toString() == _selectedPlayerId,
+                        orElse: () => null),
+                decoratorProps: const DropDownDecoratorProps(
+                  decoration: InputDecoration(
+                    labelText: "Pemain",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _selectedPlayerId = val['id'].toString());
+                  }
+                },
+                validator: (val) => val == null ? "Pilih pemain" : null,
               ),
               const SizedBox(height: 16),
 
@@ -156,6 +217,7 @@ class _RumorFormPageState extends State<RumorFormPage> {
               ),
               const SizedBox(height: 24),
 
+              // TOMBOL KIRIM
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -166,24 +228,29 @@ class _RumorFormPageState extends State<RumorFormPage> {
                   ),
                   onPressed: () async {
                     if (_formKey.currentState!.validate()) {
-                        final response = await request.postJson(
-                          "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/create-flutter/",
-                          jsonEncode({
-                            'club_asal': _selectedClubAsalId,
-                            'club_tujuan': _selectedClubTujuanId,
-                            'pemain': _selectedPlayerId,
-                            'content': _content,
-                          }),
-                        );
+                      if (_selectedClubAsalId == null || _selectedClubTujuanId == null || _selectedPlayerId == null) {
+                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mohon lengkapi semua data")));
+                         return;
+                      }
 
-                        if (context.mounted) {
-                            if (response['status'] == 'success') {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Rumor berhasil dibuat!")));
-                            } else {
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Gagal membuat rumor.")));
-                            }
+                      final response = await request.postJson(
+                        "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/create-flutter/",
+                        jsonEncode({
+                          'club_asal': _selectedClubAsalId,
+                          'club_tujuan': _selectedClubTujuanId,
+                          'pemain': _selectedPlayerId,
+                          'content': _content,
+                        }),
+                      );
+
+                      if (context.mounted) {
+                        if (response['status'] == 'success') {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Rumor berhasil dibuat!")));
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Gagal membuat rumor.")));
                         }
+                      }
                     }
                   },
                   child: const Text("Kirim Rumor"),
