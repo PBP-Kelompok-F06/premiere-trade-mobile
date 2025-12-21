@@ -23,7 +23,7 @@ class _HomepageState extends State<Homepage> {
   Future<List<Club>> fetchClubs(CookieRequest request) async {
     // Sesuaikan URL
     try {
-      final response = await request.get('http://localhost:8000/api/clubs/');
+      final response = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/api/clubs/');
 
       if (response == null) {
         return [];

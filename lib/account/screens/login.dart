@@ -85,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
                   // If you using chrome, use URL http://localhost:8000
-                  const String url = "http://localhost:8000/auth/login/";
+                  const String url = "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/auth/login/";
 
                   try {
                     final response = await request.login(url, {
@@ -103,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         
                         // Fetch profile untuk mendapatkan is_club_admin
                         try {
-                          final profileResponse = await request.get('http://localhost:8000/accounts/api/profile/');
+                          final profileResponse = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/profile/');
                           if (profileResponse != null && profileResponse['username'] != null) {
                             bool isClubAdmin = profileResponse['is_club_admin'] ?? false;
                             if (context.mounted) {

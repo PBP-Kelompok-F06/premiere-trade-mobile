@@ -25,8 +25,8 @@ class _SplashScreenState extends State<SplashScreen> {
     final request = context.read<CookieRequest>();
     // URL Backend Validasi User
     // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
-    // If you using chrome, use URL http://localhost:8000
-    const String profileUrl = "http://localhost:8000/accounts/api/profile/";
+    // If you using chrome, use URL https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id
+    const String profileUrl = "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/profile/";
     
     try {
       final response = await request.get(profileUrl);

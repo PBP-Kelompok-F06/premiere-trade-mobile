@@ -16,8 +16,8 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   dynamic fetchProfile(CookieRequest request) async {
     // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
-    // If you using chrome, use URL http://localhost:8000
-    final response = await request.get('http://localhost:8000/accounts/api/profile/');
+    // If you using chrome, use URL https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id
+    final response = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/profile/');
     return response;
   }
 
@@ -111,9 +111,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: OutlinedButton(
                     onPressed: () async {
                       // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
-                      // If you using chrome, use URL http://localhost:8000
+                      // If you using chrome, use URL https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id
                       final response = await request.logout(
-                        "http://localhost:8000/auth/logout/",
+                        "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/auth/logout/",
                       );
                       if (context.mounted && response['status']) {
                         Navigator.pushReplacement(
