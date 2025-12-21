@@ -14,10 +14,9 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  dynamic fetchProfile(CookieRequest request) async {
-    // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
-    // If you using chrome, use URL https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id
-    final response = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/profile/');
+  Future<Map<String, dynamic>> fetchProfile(CookieRequest request) async {
+    final response = await request.get(
+        'https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/profile/');
     return response;
   }
 
@@ -25,36 +24,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
 
-    return Container(
-      color: AppColors.background,
-      child: FutureBuilder(
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text("Profil Saya", style: TextStyle(color: Colors.white)),
+        backgroundColor: AppColors.primary,
+        automaticallyImplyLeading: false,
+        centerTitle: true,
+      ),
+      body: FutureBuilder(
         future: fetchProfile(request),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
- 
+
           if (snapshot.hasError ||
               !snapshot.hasData ||
               (snapshot.data as Map<String, dynamic>)['status'] == false) {
             return const Center(child: Text("Gagal memuat profil."));
           }
- 
+
           final data = snapshot.data! as Map<String, dynamic>;
- 
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               children: [
-                // Icon User Sederhana (Karena tidak ada field foto)
                 const CircleAvatar(
                   radius: 50,
                   backgroundColor: Colors.grey,
                   child: Icon(Icons.person, size: 60, color: Colors.white),
                 ),
                 const SizedBox(height: 16),
- 
-                // Username & Role
+
+                // Username
                 Text(
                   data['username'] ?? "User",
                   style: const TextStyle(
@@ -62,6 +66,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary),
                 ),
+
+                // Role
                 Container(
                   margin: const EdgeInsets.only(top: 8),
                   padding:
@@ -71,50 +77,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    data['role'] ?? "Fan Account",
+                    data['role'] ?? "Member",
                     style: const TextStyle(
                         color: AppColors.primary, fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(height: 30),
- 
-                // Info Tile (Hanya data yang ada di Model)
-                _buildInfoTile(Icons.email, "Email", data['email']),
-                _buildInfoTile(
-                    Icons.person_outline, "First Name", data['first_name']),
-                _buildInfoTile(
-                    Icons.person_outline, "Last Name", data['last_name']),
- 
+
+                if (data['managed_club'] != null && data['managed_club'] != "-")
+                  _buildInfoTile(
+                      Icons.shield, "Managed Club", data['managed_club']),
+
+                if (data['managed_club'] == null || data['managed_club'] == "-")
+                  const Text("Tidak ada klub yang dikelola.",
+                      style: TextStyle(color: Colors.grey)),
+
                 const SizedBox(height: 30),
- 
+
+                // Tombol Edit (Ke Halaman Edit yang Baru)
                 PremiereButton(
-                  text: "EDIT PROFILE",
+                  text: "EDIT PROFIL",
                   onPressed: () async {
                     bool? result = await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => EditProfileScreen(
-                          currentEmail: data['email'] ?? "",
-                          currentFirstName: data['first_name'] ?? "",
-                          currentLastName: data['last_name'] ?? "",
+                          currentUsername: data['username'] ?? "",
                         ),
                       ),
                     );
                     if (result == true) setState(() {});
                   },
                 ),
- 
+
                 const SizedBox(height: 12),
- 
+
+                // Tombol Logout
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
                     onPressed: () async {
-                      // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
-                      // If you using chrome, use URL https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id
                       final response = await request.logout(
-                        "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/auth/logout/",
-                      );
+                          "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id//auth/logout/");
                       if (context.mounted && response['status']) {
                         Navigator.pushReplacement(
                           context,
@@ -130,7 +134,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text("LOGOUT",
-                        style: TextStyle(color: AppColors.error)),
+                        style: TextStyle(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -141,7 +147,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildInfoTile(IconData icon, String label, String? value) {
+  Widget _buildInfoTile(IconData icon, String label, String value) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -162,11 +168,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Text(label,
                     style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                Text(
-                  (value == null || value.isEmpty) ? "-" : value,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w500),
-                ),
+                Text(value,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w500)),
               ],
             ),
           ),
