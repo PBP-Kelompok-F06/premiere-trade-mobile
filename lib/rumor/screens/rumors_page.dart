@@ -49,7 +49,7 @@ class _RumorsPageState extends State<RumorsPage> {
   Future<void> _checkUserRole() async {
     final request = context.read<CookieRequest>();
     try {
-      final response = await request.get('http://localhost:8000/rumors/get-user-role/');
+      final response = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-user-role/');
       
       if (mounted) {
         setState(() {
@@ -64,7 +64,7 @@ class _RumorsPageState extends State<RumorsPage> {
   Future<void> _fetchClubs() async {
     final request = context.read<CookieRequest>();
     try {
-      final response = await request.get('http://localhost:8000/rumors/get-designated-clubs/');
+      final response = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/');
       setState(() {
         _clubList = response;
       });
@@ -74,7 +74,7 @@ class _RumorsPageState extends State<RumorsPage> {
   }
 
   Future<List<Rumor>> fetchRumors(CookieRequest request) async {
-    String url = 'http://localhost:8000/rumors/json/?';
+    String url = 'https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/json/?';
 
     if (_searchName.isNotEmpty) {
       url += 'nama=$_searchName&';

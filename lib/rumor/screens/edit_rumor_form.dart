@@ -44,11 +44,11 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
     final request = context.read<CookieRequest>();
     try {
       // Load List Semua Klub (untuk Dropdown 1)
-      final allClubs = await request.get('http://localhost:8000/rumors/get-designated-clubs/');
+      final allClubs = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/');
       
       // Load List Klub Tujuan & Pemain berdasarkan Klub Asal yang lama (untuk Dropdown 2 & 3)
-      final designatedClubs = await request.get('http://localhost:8000/rumors/get-designated-clubs/?club_asal=$_selectedClubAsalId');
-      final players = await request.get('http://localhost:8000/rumors/get-players/?club_id=$_selectedClubAsalId');
+      final designatedClubs = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/?club_asal=$_selectedClubAsalId');
+      final players = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-players/?club_id=$_selectedClubAsalId');
 
       if (mounted) {
         setState(() {
@@ -76,8 +76,8 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
 
     final request = context.read<CookieRequest>();
     try {
-      final clubsRes = await request.get('http://localhost:8000/rumors/get-designated-clubs/?club_asal=$clubId');
-      final playersRes = await request.get('http://localhost:8000/rumors/get-players/?club_id=$clubId');
+      final clubsRes = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/?club_asal=$clubId');
+      final playersRes = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-players/?club_id=$clubId');
 
       if (mounted) {
         setState(() {
@@ -230,7 +230,7 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
                   onPressed: () async {
                     if (_formKey.currentState!.validate()) {
                         final response = await request.postJson(
-                          "http://localhost:8000/rumors/${widget.rumor.id}/edit-flutter/",
+                          "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${widget.rumor.id}/edit-flutter/",
                           jsonEncode({
                             'club_asal': _selectedClubAsalId,
                             'club_tujuan': _selectedClubTujuanId,

@@ -34,7 +34,7 @@ class _RumorFormPageState extends State<RumorFormPage> {
   Future<void> _fetchInitialClubs() async {
     final request = context.read<CookieRequest>();
     try {
-      final response = await request.get('http://localhost:8000/rumors/get-designated-clubs/');
+      final response = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/');
       setState(() {
         _clubAsalList = response;
         // Set default ke klub pertama
@@ -63,9 +63,9 @@ class _RumorFormPageState extends State<RumorFormPage> {
     final request = context.read<CookieRequest>();
     try {
         // Fetch Designated Clubs
-        final clubsRes = await request.get('http://localhost:8000/rumors/get-designated-clubs/?club_asal=$clubId');
+        final clubsRes = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/?club_asal=$clubId');
         // Fetch Players
-        final playersRes = await request.get('http://localhost:8000/rumors/get-players/?club_id=$clubId');
+        final playersRes = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-players/?club_id=$clubId');
 
         setState(() {
             _clubTujuanList = clubsRes;
@@ -167,7 +167,7 @@ class _RumorFormPageState extends State<RumorFormPage> {
                   onPressed: () async {
                     if (_formKey.currentState!.validate()) {
                         final response = await request.postJson(
-                          "http://localhost:8000/rumors/create-flutter/",
+                          "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/create-flutter/",
                           jsonEncode({
                             'club_asal': _selectedClubAsalId,
                             'club_tujuan': _selectedClubTujuanId,
