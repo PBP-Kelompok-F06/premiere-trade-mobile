@@ -73,9 +73,9 @@ class AdminDashboardPage extends StatelessWidget {
                   children: [
                     _statCard("Users", data['user_count'] ?? 0, Icons.people, AppColors.primary),
                     const SizedBox(width: 12),
-                    _statCard("Clubs", data['club_count'] ?? 0, Icons.shield, AppColors.secondary),
+                    _statCard("Clubs", data['club_count'] ?? 0, Icons.shield, AppColors.primary),
                     const SizedBox(width: 12),
-                    _statCard("Players", data['player_count'] ?? 0, Icons.sports_soccer, Colors.green),
+                    _statCard("Players", data['player_count'] ?? 0, Icons.sports_soccer, AppColors.primary),
                   ],
                 );
               },
