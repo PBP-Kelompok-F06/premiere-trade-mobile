@@ -245,7 +245,7 @@ class RumorDetailPage extends StatelessWidget {
                    ElevatedButton.icon(
                      onPressed: () => _handleAction(
                        context, 
-                       "http://localhost:8000/rumors/${rumor.id}/verify-flutter/", 
+                       "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${rumor.id}/verify-flutter/",
                        "Rumor berhasil diverifikasi!"
                      ),
                      icon: const Icon(Icons.check),
@@ -257,7 +257,7 @@ class RumorDetailPage extends StatelessWidget {
                    ElevatedButton.icon(
                      onPressed: () => _handleAction(
                        context, 
-                       "http://localhost:8000/rumors/${rumor.id}/deny-flutter/", 
+                       "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${rumor.id}/deny-flutter/",
                        "Rumor berhasil ditolak!"
                      ),
                      icon: const Icon(Icons.close),
@@ -270,7 +270,7 @@ class RumorDetailPage extends StatelessWidget {
                    ElevatedButton.icon(
                      onPressed: () => _handleAction(
                        context, 
-                       "http://localhost:8000/rumors/${rumor.id}/revert-flutter/", 
+                       "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${rumor.id}/revert-flutter/",
                        "Status dikembalikan ke Menunggu Verifikasi!"
                      ),
                      icon: const Icon(Icons.undo),
@@ -314,7 +314,7 @@ class RumorDetailPage extends StatelessWidget {
                                     Navigator.pop(context);
                                     _handleAction(
                                       context, 
-                                      "http://localhost:8000/rumors/${rumor.id}/delete-flutter/", 
+                                      "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${rumor.id}/delete-flutter/", 
                                       "Rumor berhasil dihapus!"
                                     );
                                   },
