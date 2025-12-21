@@ -77,7 +77,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
                 // If you using chrome, use URL http://localhost:8000
-                const String url = "http://localhost:8000/auth/register/";
+                const String url = "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/auth/register/";
 
                 try {
                   final response = await request.post(url, {
