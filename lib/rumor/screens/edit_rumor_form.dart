@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:dropdown_search/dropdown_search.dart'; // Import package
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:premiere_trade/rumor/models/rumor_model.dart';
@@ -46,8 +47,8 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
       // Load List Semua Klub (untuk Dropdown 1)
       final allClubs = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/');
       
-      // Load List Klub Tujuan & Pemain berdasarkan Klub Asal yang lama (untuk Dropdown 2 & 3)
-      final designatedClubs = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/?club_asal=$_selectedClubAsalId');
+      // Load List Klub Tujuan & Pemain berdasarkan Klub Asal yang lama
+      final designatedClubs = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-designated-clubs/?club_asal=$_selectedClubAsalId');
       final players = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/get-players/?club_id=$_selectedClubAsalId');
 
       if (mounted) {
@@ -63,13 +64,12 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
     }
   }
 
-  // Logic saat Klub Asal diganti
   Future<void> _onClubAsalChanged(String? clubId) async {
     if (clubId == null) return;
     setState(() {
       _selectedClubAsalId = clubId;
-      _selectedClubTujuanId = null; // Reset pilihan
-      _selectedPlayerId = null;     // Reset pilihan
+      _selectedClubTujuanId = null; 
+      _selectedPlayerId = null;     
       _clubTujuanList = [];
       _playerList = [];
     });
@@ -83,6 +83,13 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
         setState(() {
           _clubTujuanList = clubsRes;
           _playerList = playersRes;
+
+          if (clubsRes.isNotEmpty) {
+            _selectedClubTujuanId = clubsRes[0]['id'].toString();
+          }
+          if (playersRes.isNotEmpty) {
+            _selectedPlayerId = playersRes[0]['id'].toString();
+          }
         });
       }
     } catch (e) {
@@ -90,7 +97,6 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
     }
   }
 
-  // Helper untuk menerjemahkan status ke Bahasa Indonesia
   String _translateStatus(String status) {
     if (status == 'verified') return 'Terverifikasi';
     if (status == 'denied') return 'Ditolak';
@@ -121,12 +127,8 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
                   decoration: BoxDecoration(
                     color: Colors.yellow[100],
                     borderRadius: BorderRadius.circular(8),
-                  
                     border: Border(
-                      left: BorderSide(
-                        color: Colors.yellow[700]!, 
-                        width: 4.0,
-                      ),
+                      left: BorderSide(color: Colors.yellow[700]!, width: 4.0),
                     ),
                   ),
                   child: Column(
@@ -141,10 +143,8 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
                               text: _translateStatus(widget.rumor.status),
                               style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
-                            const TextSpan(text: ".\n"), // Line break
-                            const TextSpan(
-                              text: "Mengedit rumor akan mengubah status menjadi ",
-                            ),
+                            const TextSpan(text: ".\n"),
+                            const TextSpan(text: "Mengedit rumor akan mengubah status menjadi "),
                             const TextSpan(
                               text: "Menunggu Verifikasi",
                               style: TextStyle(fontWeight: FontWeight.bold),
@@ -158,56 +158,117 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
                 ),
               ],
 
-              // DROPDOWN KLUB ASAL
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: "Klub Asal", border: OutlineInputBorder()),
-                value: _selectedClubAsalId,
-                items: _clubAsalList.map<DropdownMenuItem<String>>((item) {
-                  return DropdownMenuItem<String>(
-                    value: item['id'].toString(),
-                    child: Text(item['name']),
-                  );
-                }).toList(),
-                onChanged: _onClubAsalChanged,
-                validator: (v) => v == null ? "Pilih klub asal" : null,
+              // 1. DROPDOWN KLUB ASAL
+              DropdownSearch<dynamic>(
+                popupProps: PopupProps.menu(
+                  showSearchBox: false,
+                  fit: FlexFit.loose,
+                  constraints: const BoxConstraints(maxHeight: 300),
+                ),
+                items: (filter, loadProps) {
+                  if (filter == null || filter.isEmpty) return _clubAsalList;
+                  return _clubAsalList.where((element) => 
+                    element['name'].toString().toLowerCase().contains(filter.toLowerCase())
+                  ).toList();
+                },
+                itemAsString: (item) => item['name'],
+                compareFn: (item, selectedItem) => item['id'] == selectedItem['id'],
+                // Set initial value berdasarkan ID yang tersimpan
+                selectedItem: _clubAsalList.isEmpty || _selectedClubAsalId == null
+                    ? null
+                    : _clubAsalList.firstWhere(
+                        (item) => item['id'].toString() == _selectedClubAsalId,
+                        orElse: () => null),
+                decoratorProps: const DropDownDecoratorProps(
+                  decoration: InputDecoration(
+                    labelText: "Klub Asal",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                onChanged: (val) {
+                  if (val != null) {
+                    _onClubAsalChanged(val['id'].toString());
+                  }
+                },
+                validator: (val) => val == null ? "Pilih klub asal" : null,
               ),
               const SizedBox(height: 16),
 
-              // DROPDOWN KLUB TUJUAN
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: "Klub Tujuan", border: OutlineInputBorder()),
-                value: _selectedClubTujuanId,
-                items: _clubTujuanList.map<DropdownMenuItem<String>>((item) {
-                  return DropdownMenuItem<String>(
-                    value: item['id'].toString(),
-                    child: Text(item['name']),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedClubTujuanId = val),
-                validator: (v) => v == null ? "Pilih klub tujuan" : null,
-                hint: const Text("Pilih Klub Asal Dulu"),
+              // 2. DROPDOWN KLUB TUJUAN
+              DropdownSearch<dynamic>(
+                popupProps: PopupProps.menu(
+                  showSearchBox: false,
+                  fit: FlexFit.loose,
+                  constraints: const BoxConstraints(maxHeight: 300),
+                ),
+                items: (filter, loadProps) {
+                  if (filter == null || filter.isEmpty) return _clubTujuanList;
+                  return _clubTujuanList.where((element) => 
+                    element['name'].toString().toLowerCase().contains(filter.toLowerCase())
+                  ).toList();
+                },
+                itemAsString: (item) => item['name'],
+                compareFn: (item, selectedItem) => item['id'] == selectedItem['id'],
+                selectedItem: _clubTujuanList.isEmpty || _selectedClubTujuanId == null
+                    ? null
+                    : _clubTujuanList.firstWhere(
+                        (item) => item['id'].toString() == _selectedClubTujuanId,
+                        orElse: () => null),
+                decoratorProps: const DropDownDecoratorProps(
+                  decoration: InputDecoration(
+                    labelText: "Klub Tujuan",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _selectedClubTujuanId = val['id'].toString());
+                  }
+                },
+                validator: (val) => val == null ? "Pilih klub tujuan" : null,
               ),
               const SizedBox(height: 16),
 
-              // DROPDOWN PEMAIN
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: "Pemain", border: OutlineInputBorder()),
-                value: _selectedPlayerId,
-                items: _playerList.map<DropdownMenuItem<String>>((item) {
-                  return DropdownMenuItem<String>(
-                    value: item['id'].toString(),
-                    child: Text(item['nama_pemain']),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedPlayerId = val),
-                validator: (v) => v == null ? "Pilih pemain" : null,
-                hint: const Text("Pilih Klub Asal Dulu"),
+              // 3. DROPDOWN PEMAIN
+              DropdownSearch<dynamic>(
+                popupProps: PopupProps.menu(
+                  showSearchBox: true,
+                  constraints: const BoxConstraints(maxHeight: 300),
+                  searchFieldProps: const TextFieldProps(
+                    decoration: InputDecoration(hintText: "Cari pemain..."),
+                  ),
+                ),
+                items: (filter, loadProps) {
+                  if (filter == null || filter.isEmpty) return _playerList;
+                  return _playerList.where((element) => 
+                    element['nama_pemain'].toString().toLowerCase().contains(filter.toLowerCase())
+                  ).toList();
+                },
+                itemAsString: (item) => item['nama_pemain'],
+                compareFn: (item, selectedItem) => item['id'] == selectedItem['id'],
+                selectedItem: _playerList.isEmpty || _selectedPlayerId == null
+                    ? null
+                    : _playerList.firstWhere(
+                        (item) => item['id'].toString() == _selectedPlayerId,
+                        orElse: () => null),
+                decoratorProps: const DropDownDecoratorProps(
+                  decoration: InputDecoration(
+                    labelText: "Pemain",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _selectedPlayerId = val['id'].toString());
+                  }
+                },
+                validator: (val) => val == null ? "Pilih pemain" : null,
               ),
               const SizedBox(height: 16),
 
               // CONTENT
               TextFormField(
-                initialValue: _content, // Pre-fill konten lama
+                initialValue: _content,
                 decoration: const InputDecoration(
                   labelText: "Detail Rumor",
                   border: OutlineInputBorder(),
@@ -229,6 +290,12 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
                   ),
                   onPressed: () async {
                     if (_formKey.currentState!.validate()) {
+                        // Pastikan ID sudah terpilih sebelum dikirim
+                        if (_selectedClubAsalId == null || _selectedClubTujuanId == null || _selectedPlayerId == null) {
+                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mohon lengkapi semua data")));
+                           return;
+                        }
+
                         final response = await request.postJson(
                           "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/rumors/${widget.rumor.id}/edit-flutter/",
                           jsonEncode({
@@ -241,9 +308,7 @@ class _EditRumorFormPageState extends State<EditRumorFormPage> {
 
                         if (context.mounted) {
                             if (response['status'] == 'success') {
-                                // Close halaman edit
                                 Navigator.pop(context, true); 
-
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text(response['message']))
                                 );
