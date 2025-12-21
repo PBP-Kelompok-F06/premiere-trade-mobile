@@ -40,8 +40,8 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.secondary,
         child: const Icon(Icons.add, color: AppColors.primary),
-        onPressed: () => Navigator.push(
-                context, MaterialPageRoute(builder: (_) => const AddUserPage()))
+        onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const UserFormPage()))
             .then((_) => setState(() {})),
       ),
       body: FutureBuilder(
@@ -76,10 +76,27 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                   subtitle: Text(
                       "${u['role']} ${u['managed_club'] != '-' ? '(${u['managed_club']})' : ''}",
                       style: AppTextStyles.caption),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline,
-                        color: AppColors.error),
-                    onPressed: () => deleteUser(request, u['id']),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // TOMBOL EDIT
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            // Kita kirim data user ke Form untuk mode Edit
+                            builder: (_) => UserFormPage(userToEdit: u),
+                          ),
+                        ).then((_) => setState(() {})),
+                      ),
+                      // TOMBOL DELETE
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline,
+                            color: AppColors.error),
+                        onPressed: () => deleteUser(request, u['id']),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -91,22 +108,38 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
   }
 }
 
-class AddUserPage extends StatefulWidget {
-  const AddUserPage({super.key});
+// === FORM YANG BISA UNTUK ADD DAN EDIT ===
+class UserFormPage extends StatefulWidget {
+  final Map<String, dynamic>? userToEdit; // Data user jika mode Edit
+
+  const UserFormPage({super.key, this.userToEdit});
+
   @override
-  State<AddUserPage> createState() => _AddUserPageState();
+  State<UserFormPage> createState() => _UserFormPageState();
 }
 
-class _AddUserPageState extends State<AddUserPage> {
+class _UserFormPageState extends State<UserFormPage> {
   final _formKey = GlobalKey<FormState>();
   String username = "", password = "", role = "fan";
   String? selectedClubId;
   List<dynamic> clubs = [];
+  bool isEditing = false;
 
   @override
   void initState() {
     super.initState();
+    isEditing = widget.userToEdit != null;
     fetchClubs();
+
+    // Jika mode edit, isi field
+    if (isEditing) {
+      username = widget.userToEdit!['username'];
+      // Password dikosongkan (hanya diisi jika ingin diganti)
+      if (widget.userToEdit!['role'] == "Club Admin") role = "admin";
+      // Kita tidak bisa pre-fill club_id dengan sempurna karena data managed_club hanya string nama,
+      // tapi logic di backend akan handle jika club_id dikirim ulang.
+      // Untuk UI Flutter sederhana, user harus pilih ulang klub jika ingin ganti klub.
+    }
   }
 
   void fetchClubs() async {
@@ -134,7 +167,7 @@ class _AddUserPageState extends State<AddUserPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text("Add User",
+        title: Text(isEditing ? "Edit User" : "Add User",
             style: AppTextStyles.h3.copyWith(color: Colors.white)),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -145,16 +178,22 @@ class _AddUserPageState extends State<AddUserPage> {
           padding: const EdgeInsets.all(20),
           children: [
             TextFormField(
+              initialValue: username,
               decoration: _inputDecor("Username", Icons.person),
               onChanged: (v) => username = v,
               validator: (v) => v!.isEmpty ? "Wajib diisi" : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
-              decoration: _inputDecor("Password", Icons.lock),
+              decoration: _inputDecor(
+                  isEditing ? "New Password (Optional)" : "Password",
+                  Icons.lock),
               obscureText: true,
               onChanged: (v) => password = v,
-              validator: (v) => v!.isEmpty ? "Wajib diisi" : null,
+              // Password wajib jika Add, Opsional jika Edit
+              validator: (v) => (!isEditing && (v == null || v.isEmpty))
+                  ? "Wajib diisi"
+                  : null,
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField(
@@ -168,7 +207,7 @@ class _AddUserPageState extends State<AddUserPage> {
             ),
             if (role == "admin") ...[
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
+              DropdownButtonFormField <String>(
                 value: selectedClubId,
                 hint: const Text("Pilih Klub"),
                 items: clubs.map<DropdownMenuItem<String>>((c) {
@@ -181,17 +220,23 @@ class _AddUserPageState extends State<AddUserPage> {
             ],
             const SizedBox(height: 30),
             PremiereButton(
-              text: "SAVE USER",
+              text: isEditing ? "UPDATE USER" : "SAVE USER",
               onPressed: () async {
                 if (_formKey.currentState!.validate()) {
+                  // URL berbeda untuk Create vs Edit
+                  String url = isEditing
+                      ? "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/users/${widget.userToEdit!['id']}/edit/"
+                      : "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/users/create/";
+
                   final response = await request.postJson(
-                      "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/users/create/",
+                      url,
                       jsonEncode({
                         "username": username,
-                        "password": password,
+                        "password": password, // Kirim kosong jika tidak diubah
                         "role": role,
                         "club_id": selectedClubId
                       }));
+
                   if (context.mounted && response['status'])
                     Navigator.pop(context);
                 }

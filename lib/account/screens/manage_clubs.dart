@@ -14,7 +14,8 @@ class ManageClubsPage extends StatefulWidget {
 
 class _ManageClubsPageState extends State<ManageClubsPage> {
   Future<List<dynamic>> fetchClubs(CookieRequest request) async {
-    final response = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/clubs/');
+    final response = await request.get(
+        'https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/clubs/');
     return response['data'];
   }
 
@@ -24,19 +25,21 @@ class _ManageClubsPageState extends State<ManageClubsPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text("Manage Clubs", style: AppTextStyles.h3.copyWith(color: Colors.white)),
+        title: Text("Manage Clubs",
+            style: AppTextStyles.h3.copyWith(color: Colors.white)),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.secondary,
         child: const Icon(Icons.add, color: AppColors.primary),
-        onPressed: () => _showAddClubDialog(context, request),
+        onPressed: () => _showClubFormDialog(context, request, null), // Mode Add
       ),
       body: FutureBuilder(
         future: fetchClubs(request),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData)
+            return const Center(child: CircularProgressIndicator());
           final clubs = snapshot.data! as List<dynamic>;
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -52,20 +55,37 @@ class _ManageClubsPageState extends State<ManageClubsPage> {
                 ),
                 child: ListTile(
                   leading: Container(
-                    width: 40, height: 40,
+                    width: 40,
+                    height: 40,
                     padding: const EdgeInsets.all(4),
-                    child: Image.network(c['logo_url'], 
-                      errorBuilder: (_,__,___)=> Icon(Icons.shield, color: AppColors.secondary),
+                    child: Image.network(
+                      c['logo_url'],
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.shield, color: AppColors.secondary),
                     ),
                   ),
-                  title: Text(c['name'], style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold)),
+                  title: Text(c['name'],
+                      style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold)),
                   subtitle: Text(c['country'], style: AppTextStyles.caption),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: AppColors.error),
-                    onPressed: () async {
-                      await request.post('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/clubs/${c['id']}/delete/', {});
-                      setState((){});
-                    },
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // TOMBOL EDIT
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () => _showClubFormDialog(context, request, c), // Mode Edit
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline,
+                            color: AppColors.error),
+                        onPressed: () async {
+                          await request.post(
+                              'https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/clubs/${c['id']}/delete/',
+                              {});
+                          setState(() {});
+                        },
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -76,9 +96,14 @@ class _ManageClubsPageState extends State<ManageClubsPage> {
     );
   }
 
-  void _showAddClubDialog(BuildContext context, CookieRequest request) {
-    String name="", country="", logoUrl="";
-    
+  // DIALOG FORM (Reusable untuk Add & Edit)
+  void _showClubFormDialog(BuildContext context, CookieRequest request,
+      Map<String, dynamic>? clubToEdit) {
+    bool isEditing = clubToEdit != null;
+    String name = isEditing ? clubToEdit['name'] : "";
+    String country = isEditing ? clubToEdit['country'] : "";
+    String logoUrl = isEditing ? clubToEdit['logo_url'] : "";
+
     InputDecoration inputDecor(String label) {
       return InputDecoration(
         labelText: label,
@@ -93,30 +118,47 @@ class _ManageClubsPageState extends State<ManageClubsPage> {
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text("Add Club", style: AppTextStyles.h3),
+        title: Text(isEditing ? "Edit Club" : "Add Club", style: AppTextStyles.h3),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(decoration: inputDecor("Name"), onChanged: (v)=>name=v),
+            TextFormField(
+                initialValue: name,
+                decoration: inputDecor("Name"),
+                onChanged: (v) => name = v),
             const SizedBox(height: 12),
-            TextField(decoration: inputDecor("Country"), onChanged: (v)=>country=v),
+            TextFormField(
+                initialValue: country,
+                decoration: inputDecor("Country"),
+                onChanged: (v) => country = v),
             const SizedBox(height: 12),
-            TextField(decoration: inputDecor("Logo URL"), onChanged: (v)=>logoUrl=v),
+            TextFormField(
+                initialValue: logoUrl,
+                decoration: inputDecor("Logo URL"),
+                onChanged: (v) => logoUrl = v),
           ],
         ),
         actions: [
-          TextButton(onPressed: ()=>Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
-            child: const Text("Save"),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white),
+            child: Text(isEditing ? "Update" : "Save"),
             onPressed: () async {
-              await request.postJson("https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/clubs/create/", 
-                jsonEncode({"name":name, "country":country, "logo_url":logoUrl}));
-              if(context.mounted) {
+              String url = isEditing
+                  ? "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/clubs/${clubToEdit['id']}/edit/"
+                  : "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/clubs/create/";
+
+              await request.postJson(url,
+                  jsonEncode({"name": name, "country": country, "logo_url": logoUrl}));
+              
+              if (context.mounted) {
                 Navigator.pop(ctx);
-                setState((){});
+                setState(() {});
               }
-            }, 
+            },
           ),
         ],
       ),

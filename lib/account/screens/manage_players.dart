@@ -14,11 +14,10 @@ class ManagePlayersPage extends StatefulWidget {
 }
 
 class _ManagePlayersPageState extends State<ManagePlayersPage> {
-  // Fungsi Fetch Data Pemain
   Future<List<dynamic>> fetchPlayers(CookieRequest request) async {
     final response = await request.get(
         'https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/players/');
-
+    
     if (response['status'] == true) {
       return response['data'];
     } else {
@@ -26,24 +25,16 @@ class _ManagePlayersPageState extends State<ManagePlayersPage> {
     }
   }
 
-  // Fungsi Hapus Pemain
   void deletePlayer(CookieRequest request, String id) async {
-    // Player ID menggunakan UUID (String)
     final response = await request.post(
         'https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/players/$id/delete/',
         {});
 
-    if (mounted) {
-      if (response['status'] == true) {
-        setState(() {}); // Refresh halaman
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Pemain berhasil dihapus")),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response['message'] ?? "Gagal menghapus")),
-        );
-      }
+    if (mounted && response['status'] == true) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Pemain berhasil dihapus")),
+      );
     }
   }
 
@@ -62,18 +53,15 @@ class _ManagePlayersPageState extends State<ManagePlayersPage> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.secondary,
         child: const Icon(Icons.add, color: AppColors.primary),
-        onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const AddPlayerPage()))
-            .then((_) => setState(() {})), // Refresh setelah tambah
+        onPressed: () => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => const PlayerFormPage())) // Mode Add
+            .then((_) => setState(() {})),
       ),
       body: FutureBuilder(
         future: fetchPlayers(request),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
           }
           if (!snapshot.hasData || (snapshot.data! as List<dynamic>).isEmpty) {
             return const Center(child: Text("Belum ada data pemain."));
@@ -97,35 +85,40 @@ class _ManagePlayersPageState extends State<ManagePlayersPage> {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   leading: CircleAvatar(
-                    backgroundColor: Colors.grey[200],
                     backgroundImage: (p['thumbnail'] != null &&
                             p['thumbnail'].toString().isNotEmpty)
                         ? NetworkImage(p['thumbnail'])
                         : null,
                     child: (p['thumbnail'] == null ||
                             p['thumbnail'].toString().isEmpty)
-                        ? const Icon(Icons.person, color: Colors.grey)
+                        ? const Icon(Icons.person)
                         : null,
                   ),
                   title: Text(
                     p['nama_pemain'],
-                    style: AppTextStyles.body
-                        .copyWith(fontWeight: FontWeight.bold),
+                    style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  subtitle: Text("${p['position']} • ${p['club_name']}",
+                      style: AppTextStyles.caption),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text("${p['position']} • ${p['club_name']}",
-                          style: AppTextStyles.caption),
-                      Text("Value: €${p['market_value']}",
-                          style: AppTextStyles.caption
-                              .copyWith(color: Colors.green)),
+                      // TOMBOL EDIT
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            // Kirim data player ke form (perlu data lengkap)
+                            builder: (_) => PlayerFormPage(playerToEdit: p),
+                          ),
+                        ).then((_) => setState(() {})),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                        onPressed: () => deletePlayer(request, p['id']),
+                      ),
                     ],
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline,
-                        color: AppColors.error),
-                    onPressed: () => deletePlayer(request, p['id']),
                   ),
                 ),
               );
@@ -137,24 +130,44 @@ class _ManagePlayersPageState extends State<ManagePlayersPage> {
   }
 }
 
-// --- FORM TAMBAH PLAYER (Sudah benar, hanya penyesuaian Style) ---
-class AddPlayerPage extends StatefulWidget {
-  const AddPlayerPage({super.key});
+// === FORM REUSABLE UNTUK PLAYER ===
+class PlayerFormPage extends StatefulWidget {
+  final Map<String, dynamic>? playerToEdit; // Jika ada, mode Edit
+
+  const PlayerFormPage({super.key, this.playerToEdit});
+
   @override
-  State<AddPlayerPage> createState() => _AddPlayerPageState();
+  State<PlayerFormPage> createState() => _PlayerFormPageState();
 }
 
-class _AddPlayerPageState extends State<AddPlayerPage> {
+class _PlayerFormPageState extends State<PlayerFormPage> {
   final _formKey = GlobalKey<FormState>();
   String nama = "", position = "", negara = "", thumbnail = "";
   int umur = 0, marketValue = 0, goal = 0, asis = 0, match = 0;
   String? selectedClubId;
   List<dynamic> clubs = [];
+  bool isEditing = false;
 
   @override
   void initState() {
     super.initState();
+    isEditing = widget.playerToEdit != null;
     _fetchClubs();
+
+    if (isEditing) {
+      // PERHATIAN: Pastikan data 'playerToEdit' dari list view memiliki semua field ini.
+      // Jika list view hanya partial data, sebaiknya fetch detail player by ID dulu.
+      // Asumsi: List view sudah mengirim data yang cukup atau kita mapping dari sana.
+      final p = widget.playerToEdit!;
+      nama = p['nama_pemain'] ?? "";
+      position = p['position'] ?? "";
+      negara = p['negara'] ?? ""; // Pastikan backend kirim ini di list
+      thumbnail = p['thumbnail'] ?? "";
+      umur = p['umur'] ?? 0; // Pastikan backend kirim ini
+      marketValue = p['market_value'] ?? 0;
+      // Club ID mungkin tidak dikirim di list view (hanya nama club).
+      // Untuk UI sederhana, user pilih club ulang jika ingin edit, atau biarkan kosong.
+    }
   }
 
   void _fetchClubs() async {
@@ -180,7 +193,7 @@ class _AddPlayerPageState extends State<AddPlayerPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text("Add Player",
+        title: Text(isEditing ? "Edit Player" : "Add Player",
             style: AppTextStyles.h3.copyWith(color: Colors.white)),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -190,7 +203,7 @@ class _AddPlayerPageState extends State<AddPlayerPage> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            DropdownButtonFormField<String>(
+            DropdownButtonFormField <String>(
               value: selectedClubId,
               hint: const Text("Pilih Klub"),
               items: clubs
@@ -198,28 +211,32 @@ class _AddPlayerPageState extends State<AddPlayerPage> {
                       value: c['id'].toString(), child: Text(c['name'])))
                   .toList(),
               onChanged: (v) => setState(() => selectedClubId = v!),
-              validator: (v) => v == null ? "Wajib pilih klub" : null,
               decoration: _inputDecor("Club"),
             ),
             const SizedBox(height: 12),
             TextFormField(
+                initialValue: nama,
                 decoration: _inputDecor("Nama Pemain"),
                 onChanged: (v) => nama = v),
             const SizedBox(height: 12),
             TextFormField(
+                initialValue: position,
                 decoration: _inputDecor("Posisi"),
                 onChanged: (v) => position = v),
             const SizedBox(height: 12),
             TextFormField(
+                initialValue: negara,
                 decoration: _inputDecor("Negara"),
                 onChanged: (v) => negara = v),
             const SizedBox(height: 12),
             TextFormField(
+                initialValue: umur > 0 ? umur.toString() : "",
                 decoration: _inputDecor("Umur"),
                 keyboardType: TextInputType.number,
                 onChanged: (v) => umur = int.tryParse(v) ?? 0),
             const SizedBox(height: 12),
             TextFormField(
+                initialValue: marketValue > 0 ? marketValue.toString() : "",
                 decoration: _inputDecor("Market Value"),
                 keyboardType: TextInputType.number,
                 onChanged: (v) => marketValue = int.tryParse(v) ?? 0),
@@ -227,34 +244,42 @@ class _AddPlayerPageState extends State<AddPlayerPage> {
             Row(children: [
               Expanded(
                   child: TextFormField(
+                      initialValue: goal.toString(),
                       decoration: _inputDecor("Goals"),
                       keyboardType: TextInputType.number,
                       onChanged: (v) => goal = int.tryParse(v) ?? 0)),
               const SizedBox(width: 10),
               Expanded(
                   child: TextFormField(
+                      initialValue: asis.toString(),
                       decoration: _inputDecor("Assists"),
                       keyboardType: TextInputType.number,
                       onChanged: (v) => asis = int.tryParse(v) ?? 0)),
             ]),
             const SizedBox(height: 12),
             TextFormField(
+                initialValue: match.toString(),
                 decoration: _inputDecor("Matches"),
                 keyboardType: TextInputType.number,
                 onChanged: (v) => match = int.tryParse(v) ?? 0),
             const SizedBox(height: 12),
             TextFormField(
+                initialValue: thumbnail,
                 decoration: _inputDecor("Thumbnail URL"),
                 onChanged: (v) => thumbnail = v),
             const SizedBox(height: 30),
             PremiereButton(
-              text: "SAVE PLAYER",
+              text: isEditing ? "UPDATE PLAYER" : "SAVE PLAYER",
               onPressed: () async {
                 if (_formKey.currentState!.validate()) {
+                  String url = isEditing
+                      ? "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/players/${widget.playerToEdit!['id']}/edit/"
+                      : "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/players/create/";
+
                   final response = await request.postJson(
-                      "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/admin/players/create/",
+                      url,
                       jsonEncode({
-                        "club_id": selectedClubId,
+                        "club_id": selectedClubId, // Pastikan pilih club jika edit
                         "nama_pemain": nama,
                         "position": position,
                         "umur": umur,
@@ -265,6 +290,7 @@ class _AddPlayerPageState extends State<AddPlayerPage> {
                         "jumlah_match": match,
                         "thumbnail": thumbnail
                       }));
+                  
                   if (context.mounted && response['status'] == true) {
                     Navigator.pop(context);
                   }
