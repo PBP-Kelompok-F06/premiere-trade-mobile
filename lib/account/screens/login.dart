@@ -6,6 +6,7 @@ import '../../main/screens/scaffold.dart';
 import '../../core/constants/colors.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/providers/user_provider.dart';
+import 'admin_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -85,7 +86,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // To connect Android emulator with Django on localhost, use URL http://10.0.2.2:8000
                   // If you using chrome, use URL http://localhost:8000
-                  const String url = "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/auth/login/";
+                  const String url =
+                      "https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/auth/login/";
 
                   try {
                     final response = await request.login(url, {
@@ -96,35 +98,50 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (request.loggedIn) {
                       String message = response['message'];
                       String uname = response['username'];
-                      
+
                       if (context.mounted) {
-                        // SIMPAN USERNAME KE PROVIDER
                         context.read<UserProvider>().setUsername(uname);
-                        
-                        // Fetch profile untuk mendapatkan is_club_admin
+
+                        // Default navigasi ke MainScaffold (jika fetch gagal)
+                        Widget nextPage = const MainScaffold();
+
                         try {
-                          final profileResponse = await request.get('https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/profile/');
-                          if (profileResponse != null && profileResponse['username'] != null) {
-                            bool isClubAdmin = profileResponse['is_club_admin'] ?? false;
+                          final profileResponse = await request.get(
+                              'https://walyulahdi-maulana-premieretrade.pbp.cs.ui.ac.id/accounts/api/profile/');
+
+                          if (profileResponse != null) {
+                            // Ambil role dari respon JSON backend
+                            String role = profileResponse['role'] ?? "Fan";
+
+                            bool isClubAdmin = (role == 'Club Admin');
                             if (context.mounted) {
-                              context.read<UserProvider>().setIsClubAdmin(isClubAdmin);
+                              context
+                                  .read<UserProvider>()
+                                  .setIsClubAdmin(isClubAdmin);
+                            }
+
+                            if (role == 'Super Admin') {
+                              nextPage =
+                                  const AdminDashboardPage();
                             }
                           }
                         } catch (e) {
                           print('Error fetching profile: $e');
                         }
-                        
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const MainScaffold()),
-                        );
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("$message Selamat datang, $uname."),
-                            backgroundColor: AppColors.success,
-                          ),
-                        );
+
+                        if (context.mounted) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => nextPage),
+                          );
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text("$message Selamat datang, $uname."),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        }
                       }
                     } else {
                       if (context.mounted) {
