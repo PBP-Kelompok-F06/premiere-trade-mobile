@@ -181,4 +181,5 @@ Kelompok : Integrasi dan membenarkan error jika ada.
 ## Tautan
 
 * **Link Figma:** https://www.figma.com/design/I6KMf3j7b4tI8y5NRLraYK/Premiere-Trade
+* **Link Video Promosi :** https://drive.google.com/file/d/13khW3wYa5wjpDf_4kYHjCkwWoNrzRNV7/view?usp=sharing
 
